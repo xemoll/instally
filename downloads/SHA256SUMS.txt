@@ -1,0 +1,4 @@
+3697bb42ef0e0a7f20889d6466ece2dfecfb645fbec92d778ee87e7e154f2a7f  instally-darwin-amd64.tar.gz
+c61fb3ff4834c8e3c1f2ff1bc1061caba728e2888e09277def15bc86c053a741  instally-darwin-arm64.tar.gz
+8096cb31d74ff17b445869bb20003bf050653ec11b000903e4ac9f97c3a16889  instally-linux-amd64.tar.gz
+a79e88d5fe564ffd70daf7f30a28340e7a483634c4e760a097fd57a1b479c0ea  instally-windows-amd64.zip
