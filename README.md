@@ -6,14 +6,16 @@ It is built around one rule: **never download the first random search result**. 
 
 ## Download
 
-The ready-to-run builds are available in the [`downloads/`](downloads/) folder of this repository:
+Download the build for your OS from the repository **Releases** page.
+
+Expected release assets:
 
 | System | File |
 |---|---|
-| Linux x86_64 | [`instally-linux-amd64.tar.gz`](downloads/instally-linux-amd64.tar.gz) |
-| Windows x86_64 | [`instally-windows-amd64.zip`](downloads/instally-windows-amd64.zip) |
-| macOS Intel | [`instally-darwin-amd64.tar.gz`](downloads/instally-darwin-amd64.tar.gz) |
-| macOS Apple Silicon | [`instally-darwin-arm64.tar.gz`](downloads/instally-darwin-arm64.tar.gz) |
+| Linux x86_64 | `instally-linux-amd64.tar.gz` |
+| Windows x86_64 | `instally-windows-amd64.zip` |
+| macOS Intel | `instally-darwin-amd64.tar.gz` |
+| macOS Apple Silicon | `instally-darwin-arm64.tar.gz` |
 
 Before running, verify the archive with [`SHA256SUMS.txt`](downloads/SHA256SUMS.txt).
 
@@ -90,7 +92,7 @@ This public repository contains:
 - user-facing documentation;
 - security policy;
 - release notes;
-- ready-to-run binary archives;
-- checksums.
+- user-facing release notes;
+- checksums for the prepared binary archives.
 
 It does **not** publish the full private development source tree.
