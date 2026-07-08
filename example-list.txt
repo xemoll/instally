@@ -1,0 +1,9 @@
+pkg: git htop curl
+flatpak: com.visualstudio.code org.telegram.desktop
+snap: discord
+github: sharkdp/fd
+release: AppImageCrafters/appimage-builder
+cargo: ripgrep
+npm: pnpm
+pipx: black
+local: ~/Downloads/app.AppImage

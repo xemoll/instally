@@ -1,0 +1,68 @@
+# ── Compiled binaries ──
+instally
+instally.exe
+instally-*
+*.exe
+*.test
+
+# ── Build output ──
+dist/
+build/
+out/
+release-assets/
+*.tar.gz
+*.zip
+
+# ── Go artifacts ──
+vendor/
+go.work
+go.work.sum
+*.cover
+coverage.out
+coverage.html
+*.prof
+*.trace
+*.test.out
+
+# ── Logs (dev artifacts) ──
+*.log
+*.logs/
+
+# ── Test artifacts ──
+tests/
+secret_scan_final.txt
+secret_scan_final.log
+
+# ── Publish package ──
+instally_full_publish_package/
+.publish-instally/
+
+# ── IDE / Editor ──
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+*~
+
+# ── OS files ──
+.DS_Store
+Thumbs.db
+desktop.ini
+*.dll
+
+# ── Environment & secrets ──
+.env
+.env.*
+*.key
+*.pem
+*.cert
+**/secrets/
+
+# ── Native GUI build deps (Fyne) ──
+native/fyne/go.sum
+
+# ── Temp files ──
+*.part
+*.tmp
