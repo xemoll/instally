@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -644,3 +645,80 @@ func sanitizeName(s string) string {
 
 func winQuote(s string) string   { return "\"" + strings.ReplaceAll(s, "\"", "\\\"") + "\"" }
 func winPSQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+
+func BuildUpdatePlan(items []string, opts Options) Plan {
+	sys := Detect()
+	items, warns := validateInstallItems("pkg", items)
+	p := Plan{System: sys, ContinueOnError: true}
+	p.Warnings = warns
+	m := sys.Manager
+	if m.ID == "none" || len(m.Update) == 0 {
+		p.Warnings = append(p.Warnings, "Package manager does not support updating specific packages")
+		return p
+	}
+	for _, item := range items {
+		cmd := append([]string{}, m.Update...)
+		cmd = append(cmd, item)
+		p.Commands = append(p.Commands, CommandSpec{
+			Title:          "Update " + item,
+			Cmd:            cmd,
+			Admin:          m.NeedsElev,
+			TimeoutSeconds:  300,
+		})
+	}
+	return p
+}
+
+func BuildUpgradePlan(opts Options) Plan {
+	sys := Detect()
+	p := Plan{System: sys}
+	m := sys.Manager
+	if m.ID == "none" || len(m.Update) == 0 {
+		p.Warnings = append(p.Warnings, "Package manager not found or does not support upgrade")
+		return p
+	}
+	var cmd []string
+	switch m.ID {
+	case "apt-get", "apt":
+		cmd = []string{m.ID, "upgrade", "-y"}
+	case "pacman":
+		cmd = []string{"pacman", "-Syu", "--noconfirm"}
+	case "dnf", "yum":
+		cmd = []string{m.ID, "upgrade", "-y"}
+	case "zypper":
+		cmd = []string{"zypper", "update", "-y"}
+	case "apk":
+		cmd = []string{"apk", "upgrade"}
+	case "winget":
+		cmd = []string{"winget", "upgrade", "--all"}
+	case "brew":
+		cmd = []string{"brew", "upgrade"}
+	case "choco":
+		cmd = []string{"choco", "upgrade", "all", "-y"}
+	default:
+		p.Warnings = append(p.Warnings, "No upgrade-all command for manager: "+m.ID)
+		return p
+	}
+	p.Commands = append(p.Commands, CommandSpec{
+		Title:         "Upgrade all packages",
+		Cmd:           cmd,
+		Admin:         m.NeedsElev,
+		TimeoutSeconds: 600,
+	})
+	return p
+}
+
+func PurgeCache() int {
+	cache := cacheDir()
+	count := 0
+	_ = filepath.Walk(cache, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || path == cache {
+			return nil
+		}
+		if err := os.Remove(path); err == nil {
+			count++
+		}
+		return nil
+	})
+	return count
+}

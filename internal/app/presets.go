@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -78,8 +79,78 @@ func KnownAppsList() string {
 	return b.String()
 }
 
-var appVersion = "1.0.0"
+var (
+	appVersion = "1.1.0"
+	buildDate  = "2026-07-08"
+)
 
 func VersionInfo() string {
 	return fmt.Sprintf("Instally v%s\n", appVersion)
+}
+
+func BuildInfo() string {
+	return fmt.Sprintf("Instally v%s\nBuild date: %s\nGo version: %s\n", appVersion, buildDate, runtime.Version())
+}
+
+func AppStats() string {
+	total := len(knownApps)
+	byLinux := map[string]int{}
+	for _, app := range knownApps {
+		switch app.Linux.Kind {
+		case "flatpak":
+			byLinux["flatpak"]++
+		case "pkg":
+			byLinux["native"]++
+		case "official-firefox":
+			byLinux["official"]++
+		case "official-discord":
+			byLinux["official"]++
+		case "github":
+			byLinux["github"]++
+		default:
+			byLinux["other"]++
+		}
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Known apps: %d\n\n", total))
+	b.WriteString("By Linux install method:\n")
+	for _, k := range []string{"flatpak", "native", "github", "official", "other"} {
+		if v := byLinux[k]; v > 0 {
+			b.WriteString(fmt.Sprintf("  %-10s %d\n", k+":", v))
+		}
+	}
+	b.WriteString(fmt.Sprintf("\nWindows (winget): %d\n", sumWithWin(knownApps)))
+	b.WriteString(fmt.Sprintf("macOS (brew):   %d\n", sumWithMac(knownApps)))
+	b.WriteString(fmt.Sprintf("GitHub repos:   %d\n", sumWithGH(knownApps)))
+	return b.String()
+}
+
+func sumWithWin(m map[string]KnownApp) int {
+	n := 0
+	for _, a := range m {
+		if a.Windows != "" {
+			n++
+		}
+	}
+	return n
+}
+
+func sumWithMac(m map[string]KnownApp) int {
+	n := 0
+	for _, a := range m {
+		if a.Mac != "" {
+			n++
+		}
+	}
+	return n
+}
+
+func sumWithGH(m map[string]KnownApp) int {
+	n := 0
+	for _, a := range m {
+		if a.GitHub != "" {
+			n++
+		}
+	}
+	return n
 }

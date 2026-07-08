@@ -105,6 +105,18 @@ var knownApps = map[string]KnownApp{
 	"tor-browser":    {Name: "Tor Browser", Aliases: []string{"torbrowser"}, Linux: Task{Kind: "flatpak", Items: []string{"org.torproject.torbrowser-launcher"}}, Windows: "TorProject.TorBrowser", Mac: "tor-browser", MacCask: true},
 	"wireguard":      {Name: "WireGuard", Linux: Task{Kind: "pkg", Items: []string{"wireguard-tools"}}, Windows: "WireGuard.WireGuard", Mac: "wireguard-tools"},
 	"protonvpn":      {Name: "Proton VPN", Linux: Task{Kind: "flatpak", Items: []string{"com.protonvpn.www"}}, Windows: "Proton.ProtonVPN", Mac: "protonvpn", MacCask: true},
+	"joplin":            {Name: "Joplin", Aliases: []string{"joplin-desktop"}, Linux: Task{Kind: "flatpak", Items: []string{"net.cozic.joplin_desktop"}}, Windows: "Joplin.Joplin", Mac: "joplin", MacCask: true, GitHub: "laurent22/joplin"},
+	"wireshark":         {Name: "Wireshark", Aliases: []string{"tshark"}, Linux: Task{Kind: "flatpak", Items: []string{"org.wireshark.Wireshark"}}, Windows: "WiresharkFoundation.Wireshark", Mac: "wireshark", MacCask: true},
+	"flameshot":         {Name: "Flameshot", Linux: Task{Kind: "flatpak", Items: []string{"org.flameshot.Flameshot"}}, Windows: "Flameshot.Flameshot", Mac: "flameshot", GitHub: "flameshot-org/flameshot"},
+	"peek":             {Name: "Peek", Linux: Task{Kind: "flatpak", Items: []string{"com.uploadedlobster.peek"}}, GitHub: "peek/peek"},
+	"freetube":         {Name: "FreeTube", Linux: Task{Kind: "flatpak", Items: []string{"io.freetubeapp.FreeTube"}}, Windows: "FreeTubeApp.FreeTube", Mac: "freetube", MacCask: true, GitHub: "FreeTubeApp/FreeTube"},
+	"transmission":     {Name: "Transmission", Aliases: []string{"transmission-gtk", "transmission-qt"}, Linux: Task{Kind: "flatpak", Items: []string{"com.transmissionbt.Transmission"}}, Windows: "Transmission.Transmission", Mac: "transmission", MacCask: true},
+	"veracrypt":        {Name: "VeraCrypt", Linux: Task{Kind: "flatpak", Items: []string{"org.veracrypt.VeraCrypt"}}, Windows: "IDRIX.VeraCrypt", Mac: "veracrypt", MacCask: true},
+	"gparted":          {Name: "GParted", Aliases: []string{"gparted"}, Linux: Task{Kind: "pkg", Items: []string{"gparted"}}},
+	"bleachbit":        {Name: "BleachBit", Linux: Task{Kind: "flatpak", Items: []string{"org.bleachbit.BleachBit"}}, Windows: "BleachBit.BleachBit", Mac: "bleachbit", MacCask: true},
+	"ventoy":           {Name: "Ventoy", Linux: Task{Kind: "pkg", Items: []string{"ventoy"}}, Windows: "Ventoy.Ventoy", GitHub: "ventoy/Ventoy"},
+	"rclone":           {Name: "rclone", Linux: Task{Kind: "pkg", Items: []string{"rclone"}}, Windows: "rclone.rclone", Mac: "rclone", GitHub: "rclone/rclone"},
+	"restic":           {Name: "restic", Linux: Task{Kind: "pkg", Items: []string{"restic"}}, Windows: "restic.restic", Mac: "restic", GitHub: "restic/restic"},
 }
 
 func knownAppKey(raw string) (string, bool) {

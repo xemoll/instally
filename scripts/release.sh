@@ -29,23 +29,6 @@ build() {
   fi
 }
 
-build_native() {
-  local os="$1" arch="$2" ext=""
-  [ "$os" = "windows" ] && ext=".exe"
-  local dir="$OUTDIR/${os}-${arch}"
-
-  if [ -d native/fyne ]; then
-    local nbinary="${dir}/instally-native${ext}"
-    if [ "$os" = "linux" ] || [ "$os" = "darwin" ]; then
-      echo "  building native GUI ${os}/${arch}..."
-      cd native/fyne
-      GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
-        go build -trimpath -ldflags="-s -w" -o "../../${nbinary}" .
-      cd "$ROOT"
-    fi
-  fi
-}
-
 # Build all targets
 build linux amd64
 build linux arm64
@@ -53,24 +36,22 @@ build windows amd64
 build darwin amd64
 build darwin arm64
 
-# Optional: native GUI (Fyne) — only on linux/darwin
-build_native linux amd64
-build_native darwin amd64
-build_native darwin arm64
-
 echo ""
 
 # Package into archives
 echo "== Packaging =="
+mkdir -p "$ROOT/dist/archives"
 for dir in "$OUTDIR"/*/; do
   os_arch="$(basename "$dir")"
 
   if [[ "$os_arch" == windows-* ]]; then
-    (cd "$OUTDIR" && zip -qr "instally-${os_arch}.zip" "$os_arch")
-    echo "  instally-${os_arch}.zip"
+    zip_name="instally-${os_arch}.zip"
+    (cd "$OUTDIR" && zip -qr "$ROOT/dist/archives/${zip_name}" "$os_arch")
+    echo "  $zip_name"
   else
-    tar -C "$OUTDIR" -czf "$OUTDIR/../instally-${os_arch}.tar.gz" "$os_arch"
-    echo "  instally-${os_arch}.tar.gz"
+    tar_name="instally-${os_arch}.tar.gz"
+    tar -C "$OUTDIR" -czf "$ROOT/dist/archives/${tar_name}" "$os_arch"
+    echo "  $tar_name"
   fi
 done
 
@@ -78,8 +59,8 @@ echo ""
 
 # Checksums
 echo "== Checksums =="
-(cd "$OUTDIR" && sha256sum ./*.tar.gz ./*.zip ./*.sha256 > SHA256SUMS.txt 2>/dev/null || true)
-sha256sum "$OUTDIR"/*.tar.gz "$OUTDIR"/*.zip 2>/dev/null
+(cd "$ROOT/dist/archives" && sha256sum ./*.tar.gz ./*.zip > SHA256SUMS.txt)
+cat "$ROOT/dist/archives/SHA256SUMS.txt"
 
 echo ""
 echo "== Done =="
