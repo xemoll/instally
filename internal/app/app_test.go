@@ -351,3 +351,80 @@ func TestMultiFlagPlanEquivalent(t *testing.T) {
 		t.Fatalf("multi plan should produce several commands: %#v", p.Commands)
 	}
 }
+
+func TestWhyOutput(t *testing.T) {
+	out := Why("firefox")
+	if !strings.Contains(out, "Reason") && !strings.Contains(out, "Not in known-apps") {
+		t.Fatalf("Why output missing reason: %s", out)
+	}
+}
+
+func TestWhichOutput(t *testing.T) {
+	out := Which("git")
+	if !strings.Contains(out, "App:") {
+		t.Fatalf("Which output missing App: %s", out)
+	}
+}
+
+func TestEnvReport(t *testing.T) {
+	t.Setenv("INSTALLY_LANG", "en")
+	out := EnvReport()
+	if !strings.Contains(out, "INSTALLY_LANG") || !strings.Contains(out, "source:") {
+		t.Fatalf("EnvReport missing set var: %s", out)
+	}
+}
+
+func TestVerifyInstalledSelf(t *testing.T) {
+	out := VerifyInstalled([]string{"git"})
+	if !strings.Contains(out, "✓") && !strings.Contains(out, "✗") {
+		t.Fatalf("VerifyInstalled missing check marks: %s", out)
+	}
+}
+
+func TestExportPlan(t *testing.T) {
+	f, _ := os.CreateTemp("", "instally-plan-*.json")
+	defer os.Remove(f.Name())
+	_ = f.Close()
+	tasks := []Task{{Kind: "pkg", Items: []string{"git"}}}
+	err := ExportPlan(tasks, Options{DryRun: true}, f.Name())
+	if err != nil {
+		t.Fatalf("ExportPlan failed: %s", err)
+	}
+	data, _ := os.ReadFile(f.Name())
+	if !strings.Contains(string(data), `"tasks"`) {
+		t.Fatalf("ExportPlan missing tasks in JSON: %s", string(data))
+	}
+}
+
+func TestPurgeCache(t *testing.T) {
+	// Just ensure no panic
+	n := PurgeCache()
+	if n < 0 {
+		t.Fatalf("PurgeCache returned negative: %d", n)
+	}
+}
+
+func TestAutoComplete(t *testing.T) {
+	bash := AutoComplete("bash")
+	if !strings.Contains(bash, "complete -F") {
+		t.Fatalf("bash completion wrong: %s", bash)
+	}
+	zsh := AutoComplete("zsh")
+	if !strings.Contains(zsh, "compdef") {
+		t.Fatalf("zsh completion wrong: %s", zsh)
+	}
+}
+
+func TestBuildInfo(t *testing.T) {
+	info := BuildInfo()
+	if !strings.Contains(info, "Instally") || !strings.Contains(info, "Go version") {
+		t.Fatalf("BuildInfo wrong: %s", info)
+	}
+}
+
+func TestAppStats(t *testing.T) {
+	s := AppStats()
+	if !strings.Contains(s, "Known apps:") {
+		t.Fatalf("AppStats missing count: %s", s)
+	}
+}

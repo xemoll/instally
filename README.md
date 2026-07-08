@@ -88,7 +88,20 @@ instally --support                                      # support matrix
 instally --version                                      # version
 instally --build-info                                   # version + Go runtime
 instally --stats                                        # known-apps statistics
+instally --which git                                    # locate binary + version
+instally --why firefox                                  # explain install method
+instally --verify-installed firefox git vscode          # check installed status
+instally --search keyword                               # search package repos
+instally --env                                         # show all INSTALLY_* vars
+instally --fix-broken                                  # repair broken manager
 instally --compat-matrix                                # 30-system dry-run matrix
+```
+
+### Plan & log
+```bash
+instally --export-plan plan.json firefox git vscode     # save plan as JSON
+instally --log install.log firefox git                   # run + write log
+instally --dry-run firefox git vscode                   # preview without running
 ```
 
 ### Batch files

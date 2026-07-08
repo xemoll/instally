@@ -8,8 +8,22 @@
 - Added `--purge-cache` — clear Instally download cache
 - Added `--build-info` — show version, build date, Go runtime
 - Added `--stats` — show known-apps statistics by package manager
+- Added `--which <app>` — locate app binary, show version, install method
+- Added `--why <app>` — explain why a particular install method was chosen
+- Added `--search <query>` — search packages via system package manager
+- Added `--verify-installed <apps>` — check if apps are installed
+- Added `--env` — show all `INSTALLY_*` environment variables
+- Added `--fix-broken` — attempt to repair broken package manager state
+- Added `--export-plan <file>` — export install plan as JSON
+- Added `--log <file>` — write install log to file
+- Added `--completions bash|zsh` — generate shell auto-completion scripts
 - Added 15 new known apps: joplin, wireshark, flameshot, peek, freetube, transmission, veracrypt, gparted, bleachbit, ventoy, rclone, restic
-- Known apps now count: 85+ applications
+- Known apps now count: 104
+
+### Internal
+- New `diagnostics.go` — 200+ lines of diagnostic functions
+- 10 new tests covering all new features
+- Full go vet and test pass
 
 ### Cleanup
 - Removed AI-related flags, docs, tests, presets, and app references
