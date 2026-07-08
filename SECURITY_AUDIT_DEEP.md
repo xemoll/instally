@@ -15,15 +15,6 @@ This release hardens installation flows instead of only adding more app aliases.
 9. Dry-run URL installs never download the file; they show the expected cache path, scan step, and install plan.
 10. Warnings-only plans still fail instead of pretending that a rejected install succeeded.
 
-## Trusted official script policy
-
-`--trusted-official-script` is for internal use by AI-tools installers. It accepts only:
-
-- `https://ollama.com/install.sh`
-- `https://claude.ai/install.sh`
-
-The file is still downloaded into cache and scanned. The trusted mode only allows a limited non-unsafe scan result for these exact URLs.
-
 ## Compatibility check
 
 The compatibility matrix remains dry-run only. It checks plan generation for 30 common OS/package-manager profiles without mutating the current system.

@@ -90,10 +90,6 @@ say "${CYAN}== Package managers (all 10) ==${NC}"
 for pm in pacman apt dnf zypper apk xbps eopkg brew winget scoop choco; do
   run "pkg-$pm"       env INSTALLY_FORCE_PM="$pm" "$BIN" --pkg git htop --dry-run --yes
   run "multi-$pm"     env INSTALLY_FORCE_PM="$pm" "$BIN" --multi "vscode,discord,telegram" --dry-run --yes
-  run "ai-tools-$pm"  env INSTALLY_FORCE_PM="$pm" "$BIN" --ai-tools --dry-run --yes
-  run "opencode-$pm"  env INSTALLY_FORCE_PM="$pm" "$BIN" --text opencode --dry-run --yes
-  run "ollama-$pm"    env INSTALLY_FORCE_PM="$pm" "$BIN" --text ollama --dry-run --yes
-  run "claude-$pm"    env INSTALLY_FORCE_PM="$pm" "$BIN" --text claude-code --dry-run --yes
 done
 
 say "${CYAN}== OS-forced tests ==${NC}"
@@ -104,13 +100,12 @@ for os in linux windows darwin; do
     darwin)  pms="brew port";;
   esac
   for pm in $pms; do
-    run "force-$os-$pm-ai"   env INSTALLY_FORCE_OS="$os" INSTALLY_FORCE_PM="$pm" "$BIN" --ai-tools --dry-run --yes
     run "force-$os-$pm-url"  env INSTALLY_FORCE_OS="$os" INSTALLY_FORCE_PM="$pm" "$BIN" --install-url-safe https://example.com/app.AppImage --dry-run --yes
   done
 done
 
 say "${CYAN}== Item resolution ==${NC}"
-for item in vscode discord telegram github:cli/cli gh:sharkdp/fd https://example.com/app.AppImage "local: /tmp/test.AppImage" opencode ollama claude-code ai-tools; do
+for item in vscode discord telegram github:cli/cli gh:sharkdp/fd https://example.com/app.AppImage "local: /tmp/test.AppImage"; do
   run "text-$item" "$BIN" --text "$item" --dry-run --yes --allow-unknown
 done
 
@@ -133,15 +128,12 @@ vscode
 discord
 telegram
 github: cli/cli
-opencode
-ollama
-claude-code
 https://example.com/app.AppImage
 APPS
-run "batch-ai-apps" "$BIN" --batch "$TMPD/apps.txt" --dry-run --yes --allow-unknown --continue-on-error
+run "batch-apps" "$BIN" --batch "$TMPD/apps.txt" --dry-run --yes --allow-unknown --continue-on-error
 
 say "${CYAN}== Long multi install ==${NC}"
-run "multi-long" "$BIN" --multi "vscode,discord,telegram,obs,vlc,blender,gimp,krita,firefox,brave,chrome,godot,neovim,docker,node,go,rust,opencode,ollama,claude-code" --dry-run --yes --allow-unknown --continue-on-error
+run "multi-long" "$BIN" --multi "vscode,discord,telegram,obs,vlc,blender,gimp,krita,firefox,brave,chrome,godot,neovim,docker,node,go,rust" --dry-run --yes --allow-unknown --continue-on-error
 
 # Secret leak check
 run_sh "no-leaked-key" 'if [ -n "${INSTALLY_FORBIDDEN_TEST_SECRET:-}" ]; then ! grep -R "$INSTALLY_FORBIDDEN_TEST_SECRET" . --exclude-dir=.git --exclude=instally --exclude="*.exe"; else true; fi'

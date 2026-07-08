@@ -170,7 +170,7 @@ func TestLinuxRunInstallerHandledAfterScan(t *testing.T) {
 }
 
 func TestMoreKnownApps(t *testing.T) {
-	for _, name := range []string{"ollama", "zed", "lazygit", "onlyoffice", "localsend"} {
+	for _, name := range []string{"vlc", "gimp", "lazygit", "onlyoffice", "localsend"} {
 		if task := AutoTask(name); task.Kind != "app" {
 			t.Fatalf("%s should be known app: %#v", name, task)
 		}

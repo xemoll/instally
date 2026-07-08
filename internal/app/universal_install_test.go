@@ -9,7 +9,7 @@ import (
 )
 
 func TestUniversalKnownApps15PlusAcrossPlatforms(t *testing.T) {
-	apps := []string{"vscode", "discord", "telegram", "firefox", "brave", "obs", "vlc", "blender", "gimp", "krita", "steam", "docker", "node", "go", "rust", "ollama", "opencode", "claude-code", "dbeaver", "tailscale"}
+	apps := []string{"vscode", "discord", "telegram", "firefox", "brave", "obs", "vlc", "blender", "gimp", "krita", "steam", "docker", "node", "go", "rust", "ripgrep", "fd", "bat", "dbeaver", "tailscale"}
 	platforms := []struct{ os, pm string }{{"linux", "pacman"}, {"linux", "apt"}, {"windows", "winget"}, {"darwin", "brew"}}
 	for _, plat := range platforms {
 		for _, name := range apps {
@@ -35,7 +35,7 @@ func TestUniversalKnownApps15PlusAcrossPlatforms(t *testing.T) {
 func TestMultiInstall15AppsBuildsGroupedPlan(t *testing.T) {
 	t.Setenv("INSTALLY_FORCE_OS", "linux")
 	t.Setenv("INSTALLY_FORCE_PM", "pacman")
-	input := "vscode, discord, telegram, firefox, brave, obs, vlc, blender, gimp, krita, steam, docker, node, go, rust, ollama"
+	input := "vscode, discord, telegram, firefox, brave, obs, vlc, blender, gimp, krita, steam, docker, node, go, rust, vlc"
 	tasks := ParseMultiItems(input)
 	if len(tasks) == 0 {
 		t.Fatalf("expected tasks, got none")
@@ -48,7 +48,7 @@ func TestMultiInstall15AppsBuildsGroupedPlan(t *testing.T) {
 	for _, c := range p.Commands {
 		all += commandLine(c) + "\n"
 	}
-	for _, want := range []string{"flatpak", "pacman", "ollama.com/install.sh"} {
+	for _, want := range []string{"flatpak", "pacman", "discord"} {
 		if !strings.Contains(all, want) {
 			t.Fatalf("multi plan missing %s:\n%s", want, all)
 		}

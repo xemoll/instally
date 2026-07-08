@@ -10,7 +10,7 @@ func TestCompatibilityMatrix30Systems(t *testing.T) {
 	if len(profiles) != 30 {
 		t.Fatalf("expected 30 profiles, got %d", len(profiles))
 	}
-	apps := []string{"vscode", "firefox", "discord", "telegram", "git", "curl", "node", "go", "rust", "python", "java", "docker", "ollama", "opencode", "claude-code"}
+	apps := []string{"vscode", "firefox", "discord", "telegram", "git", "curl", "node", "go", "rust", "python", "java", "docker", "ripgrep", "fd", "bat"}
 	for _, prof := range profiles {
 		t.Run(prof.Name, func(t *testing.T) {
 			withCompatEnv(prof, func() {

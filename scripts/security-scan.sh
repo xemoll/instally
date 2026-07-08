@@ -33,7 +33,7 @@ echo ""
 echo "Sensitive patterns in source:"
 check_secret 'api.?key'             'API key'
 check_secret 'ghp_|gho_|ghu_|ghs_' 'GitHub token'
-check_secret 'sk-[a-zA-Z0-9]{20,}' 'OpenAI key'
+check_secret 'sk-[a-zA-Z0-9]{20,}' 'secret key pattern'
 check_secret 'INSTALLY_VT_API_KEY'  'VT key in code'
 check_secret '-----BEGIN.*PRIVATE KEY-----' 'private key'
 check_secret 'password\s*='         'password assignment'

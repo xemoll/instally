@@ -159,7 +159,7 @@ func normalizeKind(k string) string {
 		return "flatpak"
 	case "snap":
 		return "snap"
-	case "pip", "pipx", "npm", "cargo", "go", "brew", "mas", "winget", "scoop", "choco", "app", "preset", "profile", "ai-tools", "official-ollama", "official-opencode", "official-claude-code", "official-firefox", "official-discord":
+	case "pip", "pipx", "npm", "cargo", "go", "brew", "mas", "winget", "scoop", "choco", "app", "preset", "profile", "official-firefox", "official-discord":
 		if k == "profile" {
 			return "preset"
 		}

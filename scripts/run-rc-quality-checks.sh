@@ -43,7 +43,7 @@ run "support en" env INSTALLY_LANG=en ./instally --support
 run "doctor" ./instally --doctor
 run "vt status" ./instally --vt-status
 run "security self test" ./instally --security-test
-apps="vscode,discord,telegram,firefox,brave,obs,vlc,blender,gimp,krita,steam,docker,node,go,rust,ollama,opencode,claude-code,git,curl,fastfetch,btop,qbittorrent,zed,lazygit,yt-dlp"
+apps="vscode,discord,telegram,firefox,brave,obs,vlc,blender,gimp,krita,steam,docker,node,go,rust,git,curl,fastfetch,btop,qbittorrent,zed,lazygit,yt-dlp"
 for pm in pacman apt dnf zypper apk xbps eopkg emerge nix packagekit; do
   run "linux $pm multi apps" env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=$pm ./instally --multi "$apps" --dry-run --yes --allow-unknown
   run "linux $pm preset dev" env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=$pm ./instally --preset dev --dry-run --yes
@@ -51,13 +51,11 @@ for pm in pacman apt dnf zypper apk xbps eopkg emerge nix packagekit; do
 done
 for pm in winget scoop choco; do
   run "windows $pm multi apps" env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=$pm ./instally --multi "$apps" --dry-run --yes --allow-unknown
-  run "windows $pm ai tools" env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=$pm ./instally --ai-tools --dry-run --yes --allow-unknown
 done
 for pm in brew port; do
   run "macos $pm multi apps" env INSTALLY_FORCE_OS=darwin INSTALLY_FORCE_PM=$pm ./instally --multi "$apps" --dry-run --yes --allow-unknown
   run "macos $pm dmg url" env INSTALLY_FORCE_OS=darwin INSTALLY_FORCE_PM=$pm ./instally --install-url-safe https://example.com/App.dmg --dry-run --yes --allow-unknown
 done
-run "ai tools cachyos pacman" env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=pacman ./instally --ai-tools --dry-run --yes --allow-unknown
 run "batch text mixed" ./instally --text $'vscode\ndiscord\ngithub: cli/cli\nhttps://example.com/app.AppImage\nlocal: ./example-list.txt' --dry-run --yes --allow-unknown
 run "multi repeated flags" ./instally --multi vscode --multi discord --multi github:cli/cli --dry-run --yes --allow-unknown
 run "reject bad pkg option" ./instally --pkg git --pkg --noconfirm --dry-run --yes
@@ -91,7 +89,7 @@ run "local appimage dry" env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=pacman ./
 printf 'not elf' > "$TMP/fake.AppImage"
 run_expect_fail "fake appimage blocks" ./instally --install-local-safe "$TMP/fake.AppImage" --dry-run --yes
 run "language en multi" env INSTALLY_LANG=en INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=apt ./instally --multi "vscode,firefox,git" --dry-run --yes
-run "preset all" ./instally --preset base --preset dev --preset media --preset ai --dry-run --yes --allow-unknown
+run "preset all" ./instally --preset base --preset dev --preset media --dry-run --yes --allow-unknown
 run "private url allow env" env INSTALLY_ALLOW_PRIVATE_URLS=1 ./instally --url http://127.0.0.1/app.AppImage --dry-run --yes --allow-unknown
 run "arch override github dry" env INSTALLY_FORCE_ARCH=arm64 ./instally --text 'github: cli/cli' --dry-run --yes --allow-unknown
 run "no key leak grep" bash -lc '! grep -R "<redacted-api-key>" -n .'

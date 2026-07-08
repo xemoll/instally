@@ -44,7 +44,7 @@ Covered profiles:
 The matrix checks a mixed list of common programs:
 
 ```text
-vscode, firefox, discord, telegram, git, curl, node, go, rust, python, java, docker, ollama, opencode, claude-code
+vscode, firefox, discord, telegram, git, curl, node, go, rust, python, java, docker
 ```
 
 The goal is not to claim that a real VM install was performed. The goal is to catch resolver bugs before installation: wrong manager choice, missing command plan, bad package aliases, private URL mistakes, invalid shell fragments and unsupported source handling.

@@ -51,7 +51,7 @@ func CompatibilityProfiles30() []CompatProfile {
 }
 
 func CompatibilityMatrixReport() string {
-	apps := []string{"vscode", "firefox", "discord", "telegram", "git", "curl", "node", "go", "rust", "python", "java", "docker", "ollama", "opencode", "claude-code"}
+	apps := []string{"vscode", "firefox", "discord", "telegram", "git", "curl", "node", "go", "rust", "python", "java", "docker", "ripgrep", "fd", "bat"}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Instally 30-system compatibility matrix (dry-run)\n")
 	fmt.Fprintf(&b, "Apps: %s\n\n", strings.Join(apps, ", "))

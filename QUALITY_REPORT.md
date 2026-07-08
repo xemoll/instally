@@ -32,7 +32,7 @@ Covered areas:
 - Linux profiles: pacman, apt, dnf, zypper, apk, xbps, eopkg, emerge, nix, PackageKit.
 - Windows profiles: winget, scoop, choco.
 - macOS profiles: Homebrew, MacPorts.
-- Large multi-install list: VS Code, Discord, Telegram, Firefox, Brave, OBS, VLC, Blender, GIMP, Krita, Steam, Docker, Node, Go, Rust, Ollama, OpenCode, Claude Code, Git, curl, fastfetch, btop, qBittorrent, Zed, lazygit, yt-dlp.
+- Large multi-install list: VS Code, Discord, Telegram, Firefox, Brave, OBS, VLC, Blender, GIMP, Krita, Steam, Docker, Node, Go, Rust, Git, curl, fastfetch, btop, qBittorrent, lazygit, yt-dlp.
 - Mixed batch text: app names, GitHub repos, URL installers, local files.
 - Security checks: EICAR blocking, fake AppImage, suspicious shell script, zip/tar traversal, private URL blocking, bad package names, bad git schemes.
 - Key leakage scan: the previously pasted key is not present in the project tree.

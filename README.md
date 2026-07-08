@@ -369,9 +369,9 @@ instally --preset gaming --dry-run --yes
 instally --batch apps.txt --yes --continue-on-error
 ```
 
-## Terminal / agent-friendly installer
+## Terminal-friendly installer
 
-For SSH sessions, terminal-only desktops, or AI agents that need a simple text workflow:
+For SSH sessions, terminal-only desktops, or simple text workflows:
 
 ```bash
 instally --terminal-install --yes
@@ -385,7 +385,7 @@ github: cli/cli
 https://example.com/app.AppImage
 ```
 
-Instally prints the exact plan first. If a command needs admin rights on Linux, it tries `pkexec` in a desktop session and otherwise uses `sudo`, so the password prompt appears in the terminal. For scripts such as Ollama and Claude Code installers, Instally downloads to cache, scans the file, then runs the checked copy instead of using raw `curl | sh`.
+Instally prints the exact plan first. If a command needs admin rights on Linux, it tries `pkexec` in a desktop session and otherwise uses `sudo`, so the password prompt appears in the terminal. For script-based installers, Instally downloads to cache, scans the file, then runs the checked copy instead of using raw `curl | sh`.
 
 ### Package-manager recovery
 

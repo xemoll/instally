@@ -79,7 +79,7 @@ func TestGitHubDryRunShowsActualLocalInstallPlan(t *testing.T) {
 }
 
 func TestLargeUniversalAppSetPlansOnMajorPlatforms(t *testing.T) {
-	apps := "vscode, discord, telegram, firefox, brave, obs, vlc, blender, gimp, krita, steam, docker, node, go, rust, ollama, opencode, claude-code, git, curl, fastfetch, btop, qbittorrent"
+	apps := "vscode, discord, telegram, firefox, brave, obs, vlc, blender, gimp, krita, steam, docker, node, go, rust, ripgrep, fd, bat, git, curl, fastfetch, btop, qbittorrent"
 	matrix := []struct{ os, pm string }{{"linux", "pacman"}, {"linux", "apt"}, {"windows", "winget"}, {"darwin", "brew"}}
 	for _, m := range matrix {
 		t.Run(m.os+"-"+m.pm, func(t *testing.T) {

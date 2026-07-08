@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// RunTerminalInstaller is a plain terminal workflow for Linux shells, SSH, and AI agents.
+// RunTerminalInstaller is a plain terminal workflow for Linux shells and SSH sessions.
 // It avoids GUI/browser UI: paste program names, URLs, GitHub repos or local paths,
 // review the generated plan, then confirm execution. If a command needs admin rights,
 // RunPlan will use pkexec when available in a desktop session, otherwise sudo so the

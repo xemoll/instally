@@ -368,7 +368,7 @@ func SupportSummary() string {
 		{"YARA", sys.Tools["yara"] != "", "дополнительные сигнатуры; Instally работает и без него"},
 		{"Archive safety", true, "встроенная проверка zip/tar path-traversal, symlink и archive-bomb признаков"},
 		{"Static heuristics", true, "поиск опасных скриптовых шаблонов, двойных расширений, EICAR и подозрительных структур"},
-		{"AI tools pack", true, "--ai-tools устанавливает OpenCode, Ollama и Claude Code подходящим методом для ОС"},
+		{"Batch install", true, "--multi позволяет установить несколько приложений одной командой (vscode,discord)"},
 		{"Terminal mode", true, "--terminal-install позволяет вставить список программ в терминале; sudo спросит пароль при необходимости"},
 	}
 	var b strings.Builder

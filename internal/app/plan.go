@@ -55,14 +55,6 @@ func BuildPlan(tasks []Task, opts Options) Plan {
 			for _, item := range task.Items {
 				p.Commands = append(p.Commands, CommandSpec{Title: "go install " + item, Cmd: []string{"go", "install", item}})
 			}
-		case "ai-tools":
-			p.addAITools(opts)
-		case "official-ollama":
-			p.addOllamaOfficial(opts)
-		case "official-opencode":
-			p.addOpenCodeOfficial(opts)
-		case "official-claude-code":
-			p.addClaudeCodeOfficial(opts)
 		case "official-firefox":
 			p.addFirefoxOfficial(opts)
 		case "official-discord":
@@ -182,14 +174,6 @@ func (p *Plan) addTaskInline(task Task, opts Options) {
 			}
 		}
 		p.addToolInstall("go", []string{"go", "install"}, items, false)
-	case "ai-tools":
-		p.addAITools(opts)
-	case "official-ollama":
-		p.addOllamaOfficial(opts)
-	case "official-opencode":
-		p.addOpenCodeOfficial(opts)
-	case "official-claude-code":
-		p.addClaudeCodeOfficial(opts)
 	case "official-firefox":
 		p.addFirefoxOfficial(opts)
 	case "official-discord":
@@ -438,152 +422,7 @@ func (p *Plan) addDiscordOfficial(opts Options) {
 	}
 }
 
-func (p *Plan) addAITools(opts Options) {
-	p.addOpenCodeOfficial(opts)
-	p.addOllamaOfficial(opts)
-	p.addClaudeCodeOfficial(opts)
-}
 
-func (p *Plan) addOpenCodeOfficial(opts Options) {
-	sys := p.System
-	switch sys.Family {
-	case Linux:
-		switch sys.Manager.ID {
-		case "pacman":
-			p.addNative([]string{"opencode"}, opts)
-		case "brew":
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install OpenCode", Cmd: []string{"brew", "install", "anomalyco/tap/opencode"}})
-		default:
-			p.addNPMGlobal([]string{"opencode-ai"}, opts)
-		}
-	case Windows:
-		switch sys.Manager.ID {
-		case "scoop":
-			p.addExplicitManager("scoop", []string{"opencode"}, opts)
-		case "choco":
-			p.addExplicitManager("choco", []string{"opencode"}, opts)
-		default:
-			p.addNPMGlobal([]string{"opencode-ai"}, opts)
-		}
-	case Darwin:
-		if sys.Manager.ID == "brew" {
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install OpenCode", Cmd: []string{"brew", "install", "anomalyco/tap/opencode"}})
-		} else {
-			p.addNPMGlobal([]string{"opencode-ai"}, opts)
-		}
-	default:
-		p.Warnings = append(p.Warnings, "OpenCode: unsupported OS")
-	}
-	p.addVerifyCommand("OpenCode", "opencode", "opencode --version")
-}
-
-func (p *Plan) addOllamaOfficial(opts Options) {
-	sys := p.System
-	switch sys.Family {
-	case Linux:
-		if sys.Manager.ID == "brew" {
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install Ollama", Cmd: []string{"brew", "install", "--cask", "ollama"}})
-		} else {
-			p.ensureTool("curl")
-			p.Commands = append(p.Commands, CommandSpec{Title: "Official Ollama installer (download, scan, run)", Cmd: officialScriptCmd("ollama", opts), Env: envForChildSecurity(Options{Yes: opts.Yes, DryRun: opts.DryRun, VirusTotalKey: opts.VirusTotalKey, VirusTotalUpload: opts.VirusTotalUpload})})
-		}
-	case Windows:
-		p.addNative([]string{"Ollama.Ollama"}, opts)
-	case Darwin:
-		if sys.Manager.ID == "brew" {
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install Ollama", Cmd: []string{"brew", "install", "--cask", "ollama"}})
-		} else {
-			p.Warnings = append(p.Warnings, "Ollama on macOS is best installed with Homebrew cask or official app download")
-		}
-	default:
-		p.Warnings = append(p.Warnings, "Ollama: unsupported OS")
-	}
-	p.addVerifyCommand("Ollama", "ollama", "ollama --version")
-}
-
-func (p *Plan) addClaudeCodeOfficial(opts Options) {
-	sys := p.System
-	switch sys.Family {
-	case Linux:
-		switch sys.Manager.ID {
-		case "apt":
-			p.ensureTool("curl")
-			p.ensureTool("gpg")
-			p.Commands = append(p.Commands, CommandSpec{Title: "Claude Code apt repository + install", Shell: claudeCodeAptShell(opts.Yes), Admin: true})
-		case "dnf":
-			p.ensureTool("curl")
-			p.ensureTool("gpg")
-			p.Commands = append(p.Commands, CommandSpec{Title: "Claude Code dnf repository + install", Shell: claudeCodeDnfShell(opts.Yes), Admin: true})
-		case "apk":
-			p.ensureTool("wget")
-			p.Commands = append(p.Commands, CommandSpec{Title: "Claude Code apk repository + install", Shell: claudeCodeApkShell(), Admin: true})
-		case "brew":
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install Claude Code", Cmd: []string{"brew", "install", "--cask", "claude-code"}})
-		default:
-			p.ensureTool("curl")
-			p.Commands = append(p.Commands, CommandSpec{Title: "Official Claude Code installer (download, scan, run)", Cmd: officialScriptCmd("claude-code", opts), Env: envForChildSecurity(Options{Yes: opts.Yes, DryRun: opts.DryRun, VirusTotalKey: opts.VirusTotalKey, VirusTotalUpload: opts.VirusTotalUpload})})
-		}
-	case Windows:
-		p.addNative([]string{"Anthropic.ClaudeCode"}, opts)
-	case Darwin:
-		if sys.Manager.ID == "brew" {
-			p.Commands = append(p.Commands, CommandSpec{Title: "Homebrew install Claude Code", Cmd: []string{"brew", "install", "--cask", "claude-code"}})
-		} else {
-			p.Commands = append(p.Commands, CommandSpec{Title: "Official Claude Code installer (download, scan, run)", Cmd: officialScriptCmd("claude-code", opts), Env: envForChildSecurity(Options{Yes: opts.Yes, DryRun: opts.DryRun, VirusTotalKey: opts.VirusTotalKey, VirusTotalUpload: opts.VirusTotalUpload})})
-		}
-	default:
-		p.Warnings = append(p.Warnings, "Claude Code: unsupported OS")
-	}
-	p.addVerifyCommand("Claude Code", "claude", "claude --version && claude doctor")
-}
-
-func officialScriptCmd(name string, opts Options) []string {
-	url := ""
-	switch name {
-	case "ollama":
-		url = "https://ollama.com/install.sh"
-	case "claude-code":
-		url = "https://claude.ai/install.sh"
-	}
-	cmd := []string{SelfPath(), "--install-url-safe", url, "--trusted-official-script"}
-	if opts.Yes {
-		cmd = append(cmd, "--yes")
-	}
-	if opts.VirusTotalUpload {
-		cmd = append(cmd, "--vt-upload")
-	}
-	return cmd
-}
-
-func (p *Plan) addVerifyCommand(title, binary, shell string) {
-	if runtime.GOOS == "windows" {
-		p.Commands = append(p.Commands, CommandSpec{Title: "Verify " + title, Shell: "where " + binary + " && " + shell})
-		return
-	}
-	local := filepath.Join(dataDir(), "npm-global", "bin", binary)
-	sh := fmt.Sprintf("if [ -x %s ]; then %s --version; elif command -v %s >/dev/null 2>&1; then %s; else echo 'Instally: %s verification skipped/not found in PATH yet'; fi", shellQuote(local), shellQuote(local), shellQuote(binary), shell, title)
-	p.Commands = append(p.Commands, CommandSpec{Title: "Verify " + title, Shell: sh})
-}
-
-func claudeCodeAptShell(yes bool) string {
-	y := ""
-	if yes {
-		y = " -y"
-	}
-	return "set -e; install -d -m 0755 /etc/apt/keyrings; curl -fsSL https://downloads.claude.ai/keys/claude-code.asc -o /etc/apt/keyrings/claude-code.asc; fpr=$(gpg --show-keys /etc/apt/keyrings/claude-code.asc 2>/dev/null | tr -d ' ' | grep -Eo '[A-F0-9]{40}' | head -n1 || true); if [ \"$fpr\" != \"31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE\" ]; then echo 'Claude Code signing key fingerprint mismatch'; exit 1; fi; printf '%s\\n' \"deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main\" > /etc/apt/sources.list.d/claude-code.list; apt update; apt install" + y + " claude-code"
-}
-
-func claudeCodeDnfShell(yes bool) string {
-	y := ""
-	if yes {
-		y = " -y"
-	}
-	return "set -e; cat > /etc/yum.repos.d/claude-code.repo <<'EOF'\n[claude-code]\nname=Claude Code\nbaseurl=https://downloads.claude.ai/claude-code/rpm/stable\nenabled=1\ngpgcheck=1\ngpgkey=https://downloads.claude.ai/keys/claude-code.asc\nEOF\ndnf install" + y + " claude-code"
-}
-
-func claudeCodeApkShell() string {
-	return "set -e; wget -O /etc/apk/keys/claude-code.rsa.pub https://downloads.claude.ai/keys/claude-code.rsa.pub; echo '395759c1f7449ef4cdef305a42e820f3c766d6090d142634ebdb049f113168b6  /etc/apk/keys/claude-code.rsa.pub' | sha256sum -c -; grep -qxF 'https://downloads.claude.ai/claude-code/apk/stable' /etc/apk/repositories || echo 'https://downloads.claude.ai/claude-code/apk/stable' >> /etc/apk/repositories; apk update; apk add claude-code"
-}
 
 func (p *Plan) addGitHub(item string, opts Options) {
 	item = normalizeGitHubTarget(item)

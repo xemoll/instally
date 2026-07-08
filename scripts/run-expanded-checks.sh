@@ -85,7 +85,7 @@ for os_pm in "windows winget vscode" "windows scoop git" "windows choco discord"
   set -- $os_pm
   check_contains "forced $1 $2 $3" "$2" env INSTALLY_FORCE_OS="$1" INSTALLY_FORCE_PM="$2" ./instally --text "$3" --dry-run --yes
 done
-apps=(vscode discord telegram spotify steam obs vlc blender gimp krita firefox brave chrome godot neovim docker node go rust alacritty wezterm kitty obsidian bitwarden keepassxc signal slack zoom postman insomnia github-desktop qbittorrent inkscape kdenlive audacity libreoffice thunderbird mpv yt-dlp ollama zed lazygit lazydocker onlyoffice localsend stremio cursor)
+apps=(vscode discord telegram spotify steam obs vlc blender gimp krita firefox brave chrome godot neovim docker node go rust alacritty wezterm kitty obsidian bitwarden keepassxc signal slack zoom postman insomnia github-desktop qbittorrent inkscape kdenlive audacity libreoffice thunderbird mpv yt-dlp lazygit lazydocker onlyoffice localsend stremio)
 for app in "${apps[@]}"; do
   check_contains "known app $app" "[" ./instally --text "$app" --dry-run --yes
 done

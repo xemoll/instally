@@ -1261,27 +1261,7 @@ func InstallURLSafe(raw string, opts Options) RunResult {
 }
 
 func isTrustedOfficialScriptURL(raw string) bool {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil {
-		return false
-	}
-	if u.Scheme != "https" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return false
-	}
-	host := strings.ToLower(u.Hostname())
-	path := strings.TrimRight(u.EscapedPath(), "/")
-	allowed := false
-	switch host {
-	case "ollama.com":
-		allowed = path == "/install.sh"
-	case "claude.ai":
-		allowed = path == "/install.sh"
-	}
-	if !allowed {
-		return false
-	}
-	_, err = validateDownloadURL(raw)
-	return err == nil
+	return false
 }
 
 func trustedOfficialScriptMayRun(rep SecurityReport) bool {

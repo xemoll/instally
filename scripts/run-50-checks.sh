@@ -125,7 +125,7 @@ run_ok pm-packagekit      env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=packagek
 run_ok pm-brew-linux      env INSTALLY_FORCE_OS=linux INSTALLY_FORCE_PM=brew "$BIN" --pkg git --dry-run --yes
 
 say "${CYAN}== Cross-platform tests ==${NC}"
-run_ok win-winget         env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=winget "$BIN" --text 'vscode discord cursor' --dry-run --yes
+run_ok win-winget         env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=winget "$BIN" --text 'vscode discord vlc' --dry-run --yes
 run_ok win-scoop          env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=scoop "$BIN" --pkg git ripgrep --dry-run --yes
 run_ok win-choco          env INSTALLY_FORCE_OS=windows INSTALLY_FORCE_PM=choco "$BIN" --pkg git ripgrep --dry-run --yes
 run_ok mac-brew           env INSTALLY_FORCE_OS=darwin INSTALLY_FORCE_PM=brew "$BIN" --text 'vscode discord' --dry-run --yes

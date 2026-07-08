@@ -7,20 +7,15 @@ run go-test go test ./...
 run build go build -o instally ./cmd/instally
 for pm in pacman apt dnf zypper apk xbps eopkg brew winget scoop choco; do
   run "pkg-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --pkg git curl --dry-run --yes
-  run "ai-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --ai-tools --dry-run --yes
-  run "opencode-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --text opencode --dry-run --yes
-  run "ollama-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --text ollama --dry-run --yes
-  run "claude-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --text claude-code --dry-run --yes
-  run "multi-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --multi "vscode,discord,telegram,opencode,ollama,claude-code" --dry-run --yes --allow-unknown
+  run "multi-$pm" env INSTALLY_FORCE_PM=$pm "$BIN" --multi "vscode,discord,telegram" --dry-run --yes --allow-unknown
  done
 for os in linux windows darwin; do
  case "$os" in linux) pms="pacman apt dnf apk";; windows) pms="winget scoop choco";; darwin) pms="brew port";; esac
  for pm in $pms; do
-   run "force-$os-$pm-ai" env INSTALLY_FORCE_OS=$os INSTALLY_FORCE_PM=$pm "$BIN" --ai-tools --dry-run --yes
-   run "force-$os-$pm-apps" env INSTALLY_FORCE_OS=$os INSTALLY_FORCE_PM=$pm "$BIN" --multi "vscode,obs,vlc,brave,cursor" --dry-run --yes --allow-unknown
+  run "force-$os-$pm-apps" env INSTALLY_FORCE_OS=$os INSTALLY_FORCE_PM=$pm "$BIN" --multi "vscode,obs,vlc,brave" --dry-run --yes --allow-unknown
  done
 done
-for item in vscode discord telegram obs vlc blender gimp krita firefox brave chrome godot neovim docker node go rust opencode ollama claude-code ai-tools github:cli/cli gh:sharkdp/fd https://example.com/app.AppImage; do
+for item in vscode discord telegram obs vlc blender gimp krita firefox brave chrome godot neovim docker node go rust github:cli/cli gh:sharkdp/fd https://example.com/app.AppImage; do
  run "auto-$item" "$BIN" --text "$item" --dry-run --yes --allow-unknown
  done
 for f in /tmp/a.AppImage /tmp/a.deb /tmp/a.rpm /tmp/a.pkg.tar.zst /tmp/a.msi /tmp/a.exe /tmp/a.dmg /tmp/a.pkg /tmp/a.zip /tmp/a.7z /tmp/a.run /tmp/a.sh; do
@@ -42,12 +37,9 @@ vscode
 discord
 telegram
 github: cli/cli
-opencode
-ollama
-claude-code
 https://example.com/app.AppImage
 APPS
-run batch-ai-apps "$BIN" --batch "$TMPD/apps.txt" --dry-run --yes --allow-unknown --continue-on-error
+run batch-apps "$BIN" --batch "$TMPD/apps.txt" --dry-run --yes --allow-unknown --continue-on-error
 run_sh no-leaked-key 'if [ -n "${INSTALLY_FORBIDDEN_TEST_SECRET:-}" ]; then ! grep -R "$INSTALLY_FORBIDDEN_TEST_SECRET" . --exclude-dir=.git --exclude=instally --exclude="*.exe" --exclude="*.log"; else true; fi'
 echo "passed=$PASS failed=$FAIL total=$((PASS+FAIL))" | tee -a "$LOG"
 [ "$FAIL" -eq 0 ]

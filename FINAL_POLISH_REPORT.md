@@ -26,7 +26,7 @@ This build focuses on installation reliability, safer defaults, clearer output, 
 - 30-system compatibility matrix
 - EICAR security self-test
 - live practical install of `jq, git, curl`
-- multi-install dry-run for Firefox, Discord, Telegram, VSCode, Git, curl, jq, OpenCode, Ollama, Claude Code
+- multi-install dry-run for Firefox, Discord, Telegram, VSCode, Git, curl, jq
 - Flatpak user-scope dry-run
 - bad input blocking
 - HTTP blocking

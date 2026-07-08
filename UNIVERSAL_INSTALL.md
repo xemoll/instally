@@ -26,7 +26,6 @@ instally --preset dev --dry-run --yes
 instally --preset gaming --dry-run --yes
 instally --preset media --dry-run --yes
 instally --preset work --dry-run --yes
-instally --preset ai --dry-run --yes
 ```
 
 Presets are only shortcuts. The same safety rules still apply.

@@ -4,7 +4,6 @@
 - Blocked plain HTTP downloads by default.
 - Blocked insecure Git schemes by default.
 - Promoted archive traversal/link/bomb findings from warning to unsafe.
-- Added exact allowlist mode for official AI installer scripts instead of broad allow-unknown.
 - Stopped forwarding VirusTotal API keys through child process environments.
 - Added stricter path/name sanitization for cache/build outputs.
 - Kept URL dry-run non-networked and clearer.
@@ -68,7 +67,7 @@
 - Result cards now use short user-facing text instead of technical scan language.
 - Long URLs, hashes, and commands are wrapped safely and no longer overflow cards.
 - Linux `.run`, `.bin`, and `.sh` installers can be handled after the safe scan path.
-- Added more app aliases: Ollama, Zed, lazygit, lazydocker, ONLYOFFICE, LocalSend, Stremio, Cursor.
+- Added more app aliases: Zed, lazygit, lazydocker, ONLYOFFICE, LocalSend, Stremio.
 
 ## Native Fyne UI polish
 
@@ -126,21 +125,10 @@
 - Fixed known app profiles whose Linux installer is `pipx`, `npm`, `cargo`, or `go`.
 - Added 130-check regression run covering CLI, security, multi-install, managers, formats, languages, URL safety, archives and cross-builds.
 
-## AI tools + expanded security pass
-
-- Added `--ai-tools` preset for OpenCode, Ollama and Claude Code.
-- Added official installers for Ollama and Claude Code through safe download/scan/run flow.
-- Added OpenCode OS-aware profile: pacman, Homebrew tap, scoop/choco, npm fallback.
-- Added Claude Code apt/dnf/apk repository installers with signing key/fingerprint checks.
-- Added VirusTotal mock integration tests through `INSTALLY_VT_API_BASE`.
-- Added stricter static-script blocking for destructive commands and Defender-disable patterns.
-- Added 131-command quick mega-check script.
-- Removed all concrete secret fixtures from source and scripts.
-
 ## Universal install expansion
 
 - Added many more app aliases across Linux/Windows/macOS.
-- Added `--preset` install groups: base, dev, gaming, media, work, ai, security, terminals.
+- Added `--preset` install groups: base, dev, gaming, media, work, security, terminals.
 - Improved Flatpak flow by ensuring Flathub exists before installing apps.
 - Added filename policy checks: bidi/control characters, masked double extensions, overly long names.
 - Added installer metadata checks for tiny packages/fake AppImages/script installers.
