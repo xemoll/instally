@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.1 (2026-07-09)
+## v1.2.0 (2026-07-09)
 
 ### New features
 - Added `--check-update` — check for Instally updates on GitHub
@@ -8,6 +8,13 @@
 - `--update` now supports `instally`, `flatpak:app`, `snap:app` items
 - `--upgrade-all` now upgrades system + flatpak + snap + Instally
 - Self-update: security-scan before install, .bak backup, atomic replace
+
+## v1.1.1 (2026-07-09)
+
+### Changes
+- TUI interface, desktop integration, security fixes (18 fixes)
+- MIT LICENSE file added
+- README rewritten in Russian
 
 ## v1.1.0 (2026-07-08)
 

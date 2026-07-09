@@ -80,7 +80,7 @@ func KnownAppsList() string {
 }
 
 var (
-	appVersion = "1.1.1"
+	appVersion = "1.2.0"
 	buildDate  = "2026-07-09"
 )
 
