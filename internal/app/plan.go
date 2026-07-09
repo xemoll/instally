@@ -17,6 +17,8 @@ type Options struct {
 	VirusTotalUpload      bool
 	ContinueOnError       bool
 	TrustedOfficialScript bool
+	Verbose               bool
+	Quiet                 bool
 }
 
 func BuildPlan(tasks []Task, opts Options) Plan {
@@ -721,6 +723,59 @@ func BuildUpdatePlan(items []string, opts Options) Plan {
 			})
 		} else {
 			p.Warnings = append(p.Warnings, "Can't update "+item+": no package manager with update support")
+		}
+	}
+	return p
+}
+
+func BuildRemovePlan(items []string, opts Options) Plan {
+	sys := Detect()
+	p := Plan{System: sys}
+	m := sys.Manager
+	flatpakTool := sys.Tools["flatpak"]
+	snapTool := sys.Tools["snap"]
+
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if strings.HasPrefix(item, "flatpak:") || strings.HasPrefix(item, "flathub:") {
+			id := strings.TrimSpace(item[strings.IndexByte(item, ':')+1:])
+			if flatpakTool != "" {
+				p.Commands = append(p.Commands, CommandSpec{
+					Title: "Remove flatpak " + id,
+					Cmd:   []string{"flatpak", "uninstall", "-y", id},
+				})
+			} else {
+				p.Warnings = append(p.Warnings, "flatpak not installed, can't remove: "+id)
+			}
+			continue
+		}
+		if strings.HasPrefix(item, "snap:") {
+			id := strings.TrimSpace(item[len("snap:"):])
+			if snapTool != "" {
+				p.Commands = append(p.Commands, CommandSpec{
+					Title: "Remove snap " + id,
+					Cmd:   []string{"snap", "remove", id},
+					Admin: true,
+				})
+			} else {
+				p.Warnings = append(p.Warnings, "snap not installed, can't remove: "+id)
+			}
+			continue
+		}
+		if m.ID != "none" && len(m.Remove) > 0 {
+			cmd := append([]string{}, m.Remove...)
+			cmd = append(cmd, item)
+			p.Commands = append(p.Commands, CommandSpec{
+				Title:          "Remove " + item,
+				Cmd:            cmd,
+				Admin:          m.NeedsElev,
+				TimeoutSeconds: 120,
+			})
+		} else {
+			p.Warnings = append(p.Warnings, "Can't remove "+item+": no package manager with remove support")
 		}
 	}
 	return p

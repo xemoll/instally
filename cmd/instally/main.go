@@ -49,6 +49,8 @@ SELF MANAGEMENT:
   --update-self             Update Instally to latest version
   --update <apps>           Update specific apps (supports: instally, flatpak:*, snap:*)
   --upgrade-all             Upgrade system + flatpak + snap + Instally
+  --upgrade                 Alias for --upgrade-all
+  --uninstall <apps>        Remove apps via system package manager
 
 DIAGNOSTICS:
   --detect                  Print system info (JSON)
@@ -80,12 +82,16 @@ SECURITY:
 
 OTHER:
   --lang ru|en              Language
+  --verbose                 Verbose output (progress bars, debug logs)
+  --quiet                   Suppress non-essential output
   --dry-run                 Preview without executing
   --yes                     Assume yes
   --log <file>              Write install log
   --export-plan <file>      Export plan as JSON
   --purge-cache             Clear download cache
   --continue-on-error       Continue after command failure
+  --changelog               Show recent changelog from GitHub
+  --release-notes           Show latest release notes from GitHub
 
 Examples:
   instally firefox git curl
@@ -103,9 +109,10 @@ func main() {
 	var pkgs, aur, flatpak, snap, git, release, local, urls, pipx, npm, cargo, golang, multi, presets listFlag
 	var batch, text, installGitHubRelease, scanPath, installLocalSafe, installURLSafe, vtKey, vtSaveKey, lang, logPath, exportPlanPath string
 	var dry, yes, detect, doctor, support, gui, legacyWebGUI, noOpen, prepare, fullSetup, setDefault, unsetDefault, installSelf, vtUpload, allowUnknown, trustedOfficialScript, vtStatus, vtClearKey, vtSaveKeyStdin, vtTest, securityTest, continueOnError, terminalMode, compatMatrix, listApps, listPresets, updateMode, upgradeMode, purgeCache, buildInfo, statsMode, fixBroken, envMode bool
-	var version, verifyInstalled, search, which, why, depends, checkUpdate, updateSelf bool
+	var version, verifyInstalled, search, which, why, depends, checkUpdate, updateSelf, changelogMode, releaseNotesMode, uninstallMode bool
 	var port int
 	var completions string
+	var verbose, quiet bool
 
 	flag.Var(&pkgs, "pkg", "native package")
 	flag.Var(&aur, "aur", "AUR package")
@@ -142,12 +149,18 @@ func main() {
 	flag.BoolVar(&terminalMode, "terminal", false, "terminal installer")
 	flag.BoolVar(&terminalMode, "terminal-install", false, "alias for --terminal")
 	flag.BoolVar(&updateMode, "update", false, "update specified apps")
+	flag.BoolVar(&uninstallMode, "uninstall", false, "remove specified apps via package manager")
 	flag.BoolVar(&upgradeMode, "upgrade-all", false, "upgrade all packages")
+	flag.BoolVar(&upgradeMode, "upgrade", false, "alias for --upgrade-all")
 	flag.BoolVar(&purgeCache, "purge-cache", false, "clear cache")
 	flag.BoolVar(&fixBroken, "fix-broken", false, "repair package manager state")
 	flag.BoolVar(&buildInfo, "build-info", false, "show build info")
 	flag.BoolVar(&statsMode, "stats", false, "show app statistics")
 	flag.BoolVar(&envMode, "env", false, "show environment variables")
+	flag.BoolVar(&verbose, "verbose", false, "verbose output (progress bars, debug)")
+	flag.BoolVar(&quiet, "quiet", false, "suppress non-essential output")
+	flag.BoolVar(&changelogMode, "changelog", false, "show recent changelog from GitHub")
+	flag.BoolVar(&releaseNotesMode, "release-notes", false, "show latest release notes from GitHub")
 	flag.BoolVar(&version, "version", false, "print version")
 	flag.BoolVar(&verifyInstalled, "verify-installed", false, "check if installed")
 	flag.BoolVar(&search, "search", false, "search packages")
@@ -329,6 +342,19 @@ func main() {
 		runPlan(plan, dry)
 		return
 	}
+	if uninstallMode {
+		items := args
+		if len(items) == 0 {
+			items = append(items, pkgs...)
+		}
+		if len(items) == 0 {
+			fmt.Println("Usage: instally --uninstall <package> [packages...]")
+			return
+		}
+		plan := app.BuildRemovePlan(items, app.Options{Yes: yes, DryRun: dry})
+		runPlan(plan, dry)
+		return
+	}
 	if upgradeMode {
 		plan := app.BuildUpgradePlan(app.Options{Yes: yes, DryRun: dry})
 		runPlan(plan, dry)
@@ -347,6 +373,20 @@ func main() {
 		} else {
 			fmt.Printf("Up to date (v%s)\n", info.Current)
 		}
+		return
+	}
+	if quiet {
+		os.Setenv("INSTALLY_QUIET", "1")
+	}
+	if verbose {
+		os.Setenv("INSTALLY_VERBOSE", "1")
+	}
+	if changelogMode {
+		fmt.Print(app.Changelog())
+		return
+	}
+	if releaseNotesMode {
+		fmt.Print(app.LatestReleaseNotes())
 		return
 	}
 	if updateSelf {
@@ -487,7 +527,8 @@ func main() {
 		if app.StdinIsTerminal() {
 			os.Exit(app.RunTUI(app.Options{}))
 		}
-		fmt.Println("Instally: use --gui, --doctor, --pkg, --batch or pass app names/URLs/files. Example: instally firefox")
+		fmt.Println("Instally: use --gui (TUI), --doctor (diagnostics) or pass app names/URLs/files.")
+		fmt.Println("Examples: instally firefox | instally --gui | instally --doctor | instally --help")
 		return
 	}
 

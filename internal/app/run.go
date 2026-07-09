@@ -406,6 +406,15 @@ func Doctor() string {
 	for _, k := range sortedKeys(sys.Tools) {
 		fmt.Fprintf(&b, "tool %-24s %s\n", k, sys.Tools[k])
 	}
+	ui := SelfUpdateCheck()
+	if ui.Error != "" {
+		fmt.Fprintf(&b, "\nUpdate check: %s\n", ui.Error)
+	} else if ui.Available {
+		fmt.Fprintf(&b, "\nUpdate available: v%s → v%s\n", ui.Current, ui.Latest)
+		fmt.Fprintf(&b, "Run: instally --update-self\n")
+	} else {
+		fmt.Fprintf(&b, "\nUp to date (v%s)\n", ui.Current)
+	}
 	b.WriteString("\n")
 	b.WriteString(SupportSummary())
 	return b.String()

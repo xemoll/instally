@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -80,16 +81,86 @@ func KnownAppsList() string {
 }
 
 var (
-	appVersion = "1.2.0"
+	appVersion = "1.2.1"
 	buildDate  = "2026-07-09"
 )
 
+func IsVerbose() bool {
+	return os.Getenv("INSTALLY_VERBOSE") == "1"
+}
+
+func IsQuiet() bool {
+	return os.Getenv("INSTALLY_QUIET") == "1"
+}
+
+func LatestReleaseNotes() string {
+	releases, err := fetchGitHubReleases("xemoll/instally")
+	if err != nil {
+		return fmt.Sprintf("Error fetching release notes: %v\n", err)
+	}
+	if len(releases) == 0 {
+		return "No releases found.\n"
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("== %s (%s) ==\n", releases[0].TagName, releases[0].Name))
+	if releases[0].Body != "" {
+		b.WriteString(releases[0].Body)
+		b.WriteString("\n")
+	} else {
+		b.WriteString("(no description)\n")
+	}
+	return b.String()
+}
+
+func Changelog() string {
+	releases, err := fetchGitHubReleases("xemoll/instally")
+	if err != nil {
+		return fmt.Sprintf("Error fetching changelog: %v\n", err)
+	}
+	if len(releases) == 0 {
+		return "No releases found.\n"
+	}
+	var b strings.Builder
+	for i, rel := range releases {
+		if i >= 5 {
+			b.WriteString(fmt.Sprintf("... and %d more releases\n", len(releases)-5))
+			break
+		}
+		b.WriteString(fmt.Sprintf("\n== %s", rel.TagName))
+		if rel.Name != "" && rel.Name != rel.TagName {
+			b.WriteString(fmt.Sprintf(" — %s", rel.Name))
+		}
+		b.WriteString(" ==\n")
+		if rel.Body != "" {
+			body := strings.TrimSpace(rel.Body)
+			lines := strings.Split(body, "\n")
+			for _, line := range lines {
+				trimmed := strings.TrimSpace(line)
+				if trimmed != "" {
+					b.WriteString(fmt.Sprintf("  %s\n", trimmed))
+				}
+			}
+		}
+	}
+	return b.String()
+}
+
 func VersionInfo() string {
-	return fmt.Sprintf("Instally v%s\n", appVersion)
+	s := fmt.Sprintf("Instally v%s\n", appVersion)
+	ui := SelfUpdateCheck()
+	if ui.Available {
+		s += fmt.Sprintf("Update available: v%s (run: instally --update-self)\n", ui.Latest)
+	}
+	return s
 }
 
 func BuildInfo() string {
-	return fmt.Sprintf("Instally v%s\nBuild date: %s\nGo version: %s\n", appVersion, buildDate, runtime.Version())
+	s := fmt.Sprintf("Instally v%s\nBuild date: %s\nGo version: %s\n", appVersion, buildDate, runtime.Version())
+	ui := SelfUpdateCheck()
+	if ui.Available {
+		s += fmt.Sprintf("Update available: v%s\n", ui.Latest)
+	}
+	return s
 }
 
 func AppStats() string {

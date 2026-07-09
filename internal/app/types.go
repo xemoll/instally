@@ -28,6 +28,7 @@ type Manager struct {
 	Install   []string            `json:"install"`
 	Yes       []string            `json:"yes"`
 	Update    []string            `json:"update"`
+	Remove    []string            `json:"remove"`
 	Search    []string            `json:"search"`
 	Info      []string            `json:"info"`
 	Local     map[string][]string `json:"local"`

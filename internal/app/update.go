@@ -24,6 +24,21 @@ type UpdateInfo struct {
 func CompareVersions(a, b string) int {
 	va := strings.TrimPrefix(a, "v")
 	vb := strings.TrimPrefix(b, "v")
+	// Strip build metadata (+...) — not meaningful for comparison
+	if idx := strings.IndexByte(va, '+'); idx >= 0 {
+		va = va[:idx]
+	}
+	if idx := strings.IndexByte(vb, '+'); idx >= 0 {
+		vb = vb[:idx]
+	}
+	// Split off pre-release suffix for separate comparison
+	var preA, preB string
+	if idx := strings.IndexByte(va, '-'); idx >= 0 {
+		va, preA = va[:idx], va[idx+1:]
+	}
+	if idx := strings.IndexByte(vb, '-'); idx >= 0 {
+		vb, preB = vb[:idx], vb[idx+1:]
+	}
 	pa := strings.Split(va, ".")
 	pb := strings.Split(vb, ".")
 	max := len(pa)
@@ -45,7 +60,20 @@ func CompareVersions(a, b string) int {
 			return 1
 		}
 	}
-	return 0
+	// Same core version — compare pre-release
+	if preA == preB {
+		return 0
+	}
+	if preA == "" {
+		return 1 // release > pre-release
+	}
+	if preB == "" {
+		return -1
+	}
+	if preA < preB {
+		return -1
+	}
+	return 1
 }
 
 func SelfUpdateCheck() UpdateInfo {

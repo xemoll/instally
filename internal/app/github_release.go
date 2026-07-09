@@ -21,6 +21,7 @@ import (
 type ghRelease struct {
 	TagName string `json:"tag_name"`
 	Name    string `json:"name"`
+	Body    string `json:"body"`
 	Assets  []struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
@@ -355,6 +356,28 @@ func downloadTimeout() time.Duration {
 	return 10 * time.Minute
 }
 
+type progressReader struct {
+	reader   io.Reader
+	total    int64
+	done     int64
+	interval time.Time
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	pr.done += int64(n)
+	if IsVerbose() && time.Since(pr.interval) > 500*time.Millisecond {
+		pr.interval = time.Now()
+		pct := float64(pr.done) / float64(pr.total) * 100
+		if pr.total > 0 {
+			fmt.Fprintf(os.Stderr, "\r  ↓ %s / %s (%.0f%%)", humanSize(pr.done), humanSize(pr.total), pct)
+		} else {
+			fmt.Fprintf(os.Stderr, "\r  ↓ %s", humanSize(pr.done))
+		}
+	}
+	return n, err
+}
+
 func downloadFileOnce(rawurl, path string) error {
 	if _, err := validateDownloadURL(rawurl); err != nil {
 		return err
@@ -398,8 +421,15 @@ func downloadFileOnce(rawurl, path string) error {
 	}
 	hasher := sha256.New()
 	limited := io.LimitReader(resp.Body, maxDownloadSize+1)
+	var reader io.Reader = limited
+	if IsVerbose() && resp.ContentLength > 0 {
+		reader = &progressReader{reader: limited, total: resp.ContentLength}
+	}
 	multi := io.MultiWriter(f, hasher)
-	n, copyErr := io.Copy(multi, limited)
+	n, copyErr := io.Copy(multi, reader)
+	if IsVerbose() && resp.ContentLength > 0 {
+		fmt.Fprintf(os.Stderr, "\r  ↓ %s / %s (100%%)\n", humanSize(n), humanSize(resp.ContentLength))
+	}
 	closeErr := f.Close()
 	if copyErr != nil {
 		_ = os.Remove(tmp)

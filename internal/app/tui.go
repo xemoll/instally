@@ -35,7 +35,7 @@ func RunTUI(opts Options) int {
 
 	bar := tview.NewTextView()
 	bar.SetDynamicColors(true)
-	bar.SetText(fmt.Sprintf("[gray]%s  ⏎ авто%s ^e сканировать  ^r установить  ^s поиск  esc выход[white]", SystemLabelForUI(sys), updateHint))
+	bar.SetText(fmt.Sprintf("[gray]%s  ⏎ авто%s ^p пресеты  ^e сканировать  ^r уст.  ^s поиск  esc[white]", SystemLabelForUI(sys), updateHint))
 
 	top := tview.NewTextView()
 	top.SetDynamicColors(true)
@@ -67,6 +67,9 @@ func RunTUI(opts Options) int {
 			return nil
 		case event.Key() == tcell.KeyCtrlS:
 			st.showSearch(strings.TrimSpace(input.GetText()), out)
+			return nil
+		case event.Key() == tcell.KeyCtrlP:
+			st.showPresets(out)
 			return nil
 		case event.Key() == tcell.KeyCtrlU:
 			go st.showUpdate(out, app)
@@ -275,6 +278,14 @@ func (b *tuiBuf) write(s string) {
 		b.out.SetText(b.buf.String())
 		b.out.ScrollToEnd()
 	})
+}
+
+func (st *tuiState) showPresets(out *tview.TextView) {
+	var lines []string
+	for name, apps := range installPresets {
+		lines = append(lines, fmt.Sprintf("[green]%s[white]: %s", name, strings.Join(apps, ", ")))
+	}
+	out.SetText(strings.Join(lines, "\n"))
 }
 
 func (st *tuiState) showUpdate(out *tview.TextView, a *tview.Application) {

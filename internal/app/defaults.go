@@ -86,17 +86,19 @@ func FullSetupPlan(self string) Plan {
 }
 
 func linuxDesktop(bin string) string {
-	return `[Desktop Entry]
+	return fmt.Sprintf(`[Desktop Entry]
 Type=Application
 Name=Instally
-GenericName=Universal installer
-Comment=Install apps from packages, stores, Git and releases
-Exec=` + bin + `
+GenericName=Universal package installer
+Comment=Install apps from packages, stores, Git and GitHub releases
+Exec=%s
 Terminal=true
 Icon=instally
-Categories=System;PackageManager;Utility;
+Categories=System;PackageManager;Utility;Archiving;
+Keywords=install;package;app;flatpak;snap;aur;brew;winget;git;
 StartupNotify=true
-`
+X-Instally-Version=%s
+`, bin, appVersion)
 }
 
 func mimeXML() string {
