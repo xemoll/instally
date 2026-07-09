@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.1 (2026-07-09)
+
+### New features
+- Added `--check-update` — check for Instally updates on GitHub
+- Added `--update-self` — download and replace Instally binary atomically
+- `--update` now supports `instally`, `flatpak:app`, `snap:app` items
+- `--upgrade-all` now upgrades system + flatpak + snap + Instally
+- Self-update: security-scan before install, .bak backup, atomic replace
+
 ## v1.1.0 (2026-07-08)
 
 ### New features
