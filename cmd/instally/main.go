@@ -14,6 +14,91 @@ type listFlag []string
 func (l *listFlag) String() string     { return strings.Join(*l, ",") }
 func (l *listFlag) Set(v string) error { *l = append(*l, v); return nil }
 
+func init() {
+	flag.Usage = func() {
+		fmt.Fprint(os.Stderr, `Instally — universal package installer
+
+Usage: instally [flags] [packages...]
+
+INSTALL:
+  --pkg <name>              Native system package (apt, pacman, dnf, winget, brew...)
+  --aur <name>              AUR package (Arch Linux)
+  --flatpak <id>            Flatpak from Flathub
+  --snap <name>             Snap package
+  --pipx <name>             pipx tool
+  --npm <name>              npm global tool
+  --cargo <crate>           cargo install
+  --go <pkg>                go install
+  --git <url>               Clone and build from git
+  --github <owner/repo>     Download latest GitHub release
+  --release <owner/repo>    Alias for --github
+  --url <url>               Download and install
+  --local <path>            Install local file
+  --multi "a,b,c"           Batch install
+  --batch <file>            Batch install from file
+  --text "list"             Batch install from text
+  --preset <name>           Install preset (base, dev, gaming, media, work, security, terminals)
+
+SELF MANAGEMENT:
+  --install-self            Install Instally on this system
+  --full-setup              Install deps + menu entry + defaults
+  --set-default-installer   Register as default installer
+  --unset-default-installer Unregister defaults
+  --gui                     Start TUI (text interface)
+  --check-update            Check for Instally updates on GitHub
+  --update-self             Update Instally to latest version
+  --update <apps>           Update specific apps (supports: instally, flatpak:*, snap:*)
+  --upgrade-all             Upgrade system + flatpak + snap + Instally
+
+DIAGNOSTICS:
+  --detect                  Print system info (JSON)
+  --doctor                  Full diagnostics
+  --support                 Support matrix
+  --version                 Print version
+  --build-info              Version + build date + Go runtime
+  --stats                   Known-apps statistics
+  --which <app>             Locate binary + version
+  --why <app>               Explain install method
+  --search <query>          Search packages in system manager
+  --verify-installed <apps> Check installation status
+  --env                     Show all INSTALLY_* variables
+  --fix-broken              Repair package manager state
+  --compat-matrix           30-system compatibility report
+  --completions bash|zsh    Generate shell completions
+
+SECURITY:
+  --scan <file>             Scan file and print security report
+  --vt-key <key>            VirusTotal API key (one-time)
+  --vt-save-key <key>       Save VirusTotal key permanently
+  --vt-save-key-stdin       Read VirusTotal key from stdin
+  --vt-clear-key            Remove saved VirusTotal key
+  --vt-status               Show VirusTotal configuration
+  --vt-test                 Test VirusTotal key with EICAR hash
+  --vt-upload               Allow upload to VirusTotal
+  --security-test           Run EICAR self-test
+  --allow-unknown           Allow install with limited scan
+
+OTHER:
+  --lang ru|en              Language
+  --dry-run                 Preview without executing
+  --yes                     Assume yes
+  --log <file>              Write install log
+  --export-plan <file>      Export plan as JSON
+  --purge-cache             Clear download cache
+  --continue-on-error       Continue after command failure
+
+Examples:
+  instally firefox git curl
+  instally --gui
+  instally --update firefox git
+  instally --check-update
+  instally --update-self
+  instally --preset dev
+  instally --batch list.txt
+`)
+	}
+}
+
 func main() {
 	var pkgs, aur, flatpak, snap, git, release, local, urls, pipx, npm, cargo, golang, multi, presets listFlag
 	var batch, text, installGitHubRelease, scanPath, installLocalSafe, installURLSafe, vtKey, vtSaveKey, lang, logPath, exportPlanPath string
@@ -236,9 +321,8 @@ func main() {
 			items = append(items, flatpak...)
 		}
 		if len(items) == 0 {
-			fmt.Println("Usage: instally --update firefox discord git")
-			fmt.Println("       instally --update           (upgrade all + Instally)")
-			fmt.Println("       instally --update instally  (update Instally itself)")
+			plan := app.BuildUpgradePlan(app.Options{Yes: yes, DryRun: dry})
+			runPlan(plan, dry)
 			return
 		}
 		plan := app.BuildUpdatePlan(items, app.Options{Yes: yes, DryRun: dry})
@@ -246,7 +330,7 @@ func main() {
 		return
 	}
 	if upgradeMode {
-		plan := app.BuildUpgradePlan(app.Options{})
+		plan := app.BuildUpgradePlan(app.Options{Yes: yes, DryRun: dry})
 		runPlan(plan, dry)
 		return
 	}

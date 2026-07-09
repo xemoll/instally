@@ -613,8 +613,6 @@ func isArchiveExt(ext string) bool {
 	return ext == ".zip" || ext == ".7z" || strings.HasPrefix(ext, ".tar")
 }
 
-func adminForGlobalNode(sys SystemInfo) bool { return sys.Family == Linux && sys.Manager.ID != "brew" }
-
 func repoName(raw string) string {
 	raw = strings.TrimSuffix(raw, ".git")
 	parts := strings.Split(strings.Trim(raw, "/"), "/")
@@ -705,7 +703,7 @@ func BuildUpdatePlan(items []string, opts Options) Plan {
 			if info.Available {
 				p.Commands = append(p.Commands, CommandSpec{
 					Title: "Update Instally",
-					Shell: SelfPath() + " --update-self --yes",
+					Shell: shellQuote(SelfPath()) + " --update-self --yes",
 				})
 			} else {
 				p.Warnings = append(p.Warnings, "Instally already up to date")
@@ -783,12 +781,12 @@ func BuildUpgradePlan(opts Options) Plan {
 		})
 	}
 
-	info := SelfUpdateCheck()
+		info := SelfUpdateCheck()
 	if info.Available {
 		p.Warnings = append(p.Warnings, "Instally update available: v"+info.Latest+" — run 'instally --update-self'")
 		p.Commands = append(p.Commands, CommandSpec{
 			Title: "Update Instally",
-			Shell: SelfPath() + " --update-self --yes",
+			Shell: shellQuote(SelfPath()) + " --update-self --yes",
 		})
 	}
 

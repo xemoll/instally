@@ -284,16 +284,28 @@ func FixBroken() string {
 
 func AutoComplete(shell string) string {
 	cmds := []string{
-		"--help", "--version", "--build-info", "--stats", "--detect", "--doctor", "--support",
-		"--list-apps", "--list-presets", "--gui",
-		"--dry-run", "--yes", "--continue-on-error",
+		"--help", "--version", "--build-info",
+		"--detect", "--doctor", "--support", "--compat-matrix", "--stats",
+		"--list-apps", "--list-presets",
+		"--gui", "--terminal", "--terminal-install",
+		"--check-update", "--update-self",
 		"--update", "--upgrade-all", "--purge-cache", "--fix-broken",
-		"--search", "--which", "--why", "--verify-installed", "--depends",
-		"--env", "--export-plan",
-		"--lang",
-		"--pkg", "--flatpak", "--snap", "--pipx", "--npm", "--cargo", "--go",
-		"--git", "--github", "--release", "--url", "--local", "--multi", "--preset",
-		"--batch", "--text", "--scan",
+		"--install-self", "--full-setup",
+		"--set-default-installer", "--unset-default-installer",
+		"--search", "--which", "--why", "--verify-installed",
+		"--env", "--export-plan", "--completions",
+		"--lang", "--dry-run", "--yes", "--continue-on-error", "--log",
+		"--pkg", "--package", "--aur", "--flatpak", "--snap",
+		"--pipx", "--npm", "--cargo", "--go",
+		"--git", "--github", "--release", "--url", "--local", "--multi",
+		"--preset", "--batch", "--text",
+		"--scan", "--install-github-release",
+		"--install-local-safe", "--install-url-safe",
+		"--vt-key", "--vt-save-key", "--vt-save-key-stdin",
+		"--vt-clear-key", "--vt-status", "--vt-test", "--vt-upload",
+		"--security-test", "--allow-unknown",
+		"--trusted-official-script",
+		"--no-open", "--port", "--legacy-web-gui",
 	}
 
 	switch shell {

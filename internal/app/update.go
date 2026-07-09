@@ -78,56 +78,9 @@ func SelfUpdateCheck() UpdateInfo {
 			return info
 		}
 	}
-	if len(releases[0].Assets) == 0 {
-		info.Error = "latest release has no assets"
-		return info
-	}
-	best := releases[0].Assets[0]
-	info.AssetName = best.Name
-	info.AssetURL = best.BrowserDownloadURL
-	info.Size = best.Size
+	info.Error = fmt.Sprintf("no compatible binary asset found for %s/%s in release %s",
+		sys.Family, sys.Arch, releases[0].TagName)
 	return info
-}
-
-func SelfPlan(info UpdateInfo, newBinary string) Plan {
-	cmds := []CommandSpec{
-		{
-			Title: fmt.Sprintf("Download Instally %s (%s)", info.Latest, info.AssetName),
-			Shell: fmt.Sprintf("curl -fL -o %s %s", shellQuote(newBinary), shellQuote(info.AssetURL)),
-		},
-		{
-			Title: "Make binary executable",
-			Shell: fmt.Sprintf("chmod +x %s", shellQuote(newBinary)),
-		},
-	}
-	self := SelfPath()
-	dst := self
-	isInHome := strings.HasPrefix(self, homeDir())
-
-	if !isInHome && self != "" {
-		cmds = append(cmds, CommandSpec{
-			Title: fmt.Sprintf("Install new binary to %s", self),
-			Shell: fmt.Sprintf("cp %s %s && chmod +x %s && rm %s",
-				shellQuote(newBinary), shellQuote(self), shellQuote(self), shellQuote(newBinary)),
-			Admin: true,
-		})
-	} else {
-		if self == "" {
-			dst = filepath.Join(homeDir(), ".local", "bin", "instally")
-		}
-		cmds = append(cmds, CommandSpec{
-			Title: fmt.Sprintf("Replace binary at %s", dst),
-			Shell: fmt.Sprintf("cp %s %s && chmod +x %s && touch -r %s %s 2>/dev/null; rm %s",
-				shellQuote(newBinary), shellQuote(dst), shellQuote(dst),
-				shellQuote(dst), shellQuote(self), shellQuote(newBinary)),
-		})
-	}
-
-	return Plan{
-		System:   Detect(),
-		Commands: cmds,
-		Warnings: []string{},
-	}
 }
 
 func SelfUpdate(opts Options, info UpdateInfo) RunResult {
@@ -149,18 +102,24 @@ func SelfUpdate(opts Options, info UpdateInfo) RunResult {
 
 	fmt.Fprintf(&out, "Downloading %s (%s)\n", info.AssetName, humanSize(info.Size))
 	tmpDir := filepath.Join(cacheDir(), "self-update")
-	_ = os.MkdirAll(tmpDir, 0o700)
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+		fmt.Fprintf(&out, "failed to create temp dir: %v\n", err)
+		res.OK = false
+		res.Errors = append(res.Errors, err.Error())
+		res.Output = out.String()
+		return res
+	}
 
 	dl := filepath.Join(tmpDir, info.AssetName)
 	integrityPath := dl + ".sha256"
-	_ = os.Remove(dl)
-	_ = os.Remove(integrityPath)
+	os.Remove(dl)
+	os.Remove(integrityPath)
 
 	if opts.DryRun {
 		fmt.Fprintf(&out, "would download: %s\n", info.AssetURL)
 		fmt.Fprintf(&out, "would save to: %s\n", dl)
 		fmt.Fprintf(&out, "would replace: %s\n\n", SelfPath())
-		fmt.Fprintf(&out, "Instally: готово (dry-run)\n")
+		fmt.Fprintf(&out, "Instally: ready (dry-run)\n")
 		res.Output = out.String()
 		return res
 	}
@@ -177,7 +136,7 @@ func SelfUpdate(opts Options, info UpdateInfo) RunResult {
 	writeSecurityHuman(&out, rep)
 	if rep.Status == "error" {
 		fmt.Fprintf(&out, "security scan error, blocking update\n")
-		_ = os.Remove(dl)
+		os.Remove(dl)
 		res.OK = false
 		res.Errors = append(res.Errors, "security scan error")
 		res.Output = out.String()
@@ -185,7 +144,7 @@ func SelfUpdate(opts Options, info UpdateInfo) RunResult {
 	}
 	if rep.Status == "unsafe" && !opts.AllowUnknown {
 		fmt.Fprintf(&out, "update binary flagged as unsafe, use --allow-unknown to force\n")
-		_ = os.Remove(dl)
+		os.Remove(dl)
 		res.OK = false
 		res.Errors = append(res.Errors, "binary flagged as unsafe")
 		res.Output = out.String()
@@ -197,22 +156,35 @@ func SelfUpdate(opts Options, info UpdateInfo) RunResult {
 		self = filepath.Join(homeDir(), ".local", "bin", "instally")
 	}
 	backup := self + ".bak." + strconv.FormatInt(time.Now().Unix(), 10)
-	fmt.Fprintf(&out, "Backing up current binary to %s\n", filepath.Base(backup))
-	_ = os.Rename(self, backup)
 
-	fmt.Fprintf(&out, "Installing %s → %s\n", dl, self)
+	if err := os.Rename(self, backup); err != nil {
+		fmt.Fprintf(&out, "warning: could not back up current binary: %v\n", err)
+		backup = ""
+	} else {
+		fmt.Fprintf(&out, "Backed up to %s\n", filepath.Base(backup))
+	}
+
+	fmt.Fprintf(&out, "Installing %s\n", self)
 	if err := copyFile(dl, self); err != nil {
 		fmt.Fprintf(&out, "install failed: %v\n", err)
-		_ = os.Rename(backup, self)
+		if backup != "" {
+			if rbErr := os.Rename(backup, self); rbErr != nil {
+				fmt.Fprintf(&out, "error restoring backup: %v\n", rbErr)
+			}
+		}
 		res.OK = false
 		res.Errors = append(res.Errors, err.Error())
 		res.Output = out.String()
 		return res
 	}
-	_ = os.Chmod(self, 0o755)
-	_ = os.Remove(dl)
-	_ = os.Remove(integrityPath)
-	_ = os.Remove(backup)
+	if err := os.Chmod(self, 0o755); err != nil {
+		fmt.Fprintf(&out, "warning: could not set executable bit: %v\n", err)
+	}
+	os.Remove(dl)
+	os.Remove(integrityPath)
+	if backup != "" {
+		os.Remove(backup)
+	}
 
 	fmt.Fprintf(&out, "\nUpdated to v%s\n", info.Latest)
 	if !opts.Yes {
@@ -242,11 +214,11 @@ func copyFile(src, dst string) error {
 	_, err = io.Copy(out, in)
 	closeErr := out.Close()
 	if err != nil {
-		_ = os.Remove(tmp)
+		os.Remove(tmp)
 		return err
 	}
 	if closeErr != nil {
-		_ = os.Remove(tmp)
+		os.Remove(tmp)
 		return closeErr
 	}
 

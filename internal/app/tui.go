@@ -25,14 +25,22 @@ func RunTUI(opts Options) int {
 	out.SetWordWrap(true)
 	out.SetText("\n  напиши что установить")
 
+	updateNote := ""
+	updateHint := ""
+	ui := SelfUpdateCheck()
+	if ui.Available {
+		updateNote = fmt.Sprintf(" · [green]↑ v%s[white]", ui.Latest)
+		updateHint = "  ^u обновить"
+	}
+
 	bar := tview.NewTextView()
 	bar.SetDynamicColors(true)
-	bar.SetText(fmt.Sprintf("[gray]%s  ⏎ авто  ^e сканировать  ^r установить  ^s поиск  esc выход[white]", SystemLabelForUI(sys)))
+	bar.SetText(fmt.Sprintf("[gray]%s  ⏎ авто%s ^e сканировать  ^r установить  ^s поиск  esc выход[white]", SystemLabelForUI(sys), updateHint))
 
 	top := tview.NewTextView()
 	top.SetDynamicColors(true)
 	top.SetTextAlign(tview.AlignCenter)
-	top.SetText(fmt.Sprintf("[gray]instally · установка без лишнего · %s[white]", SystemLabelForUI(sys)))
+	top.SetText(fmt.Sprintf("[gray]instally · %s%s[white]", SystemLabelForUI(sys), updateNote))
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(top, 1, 0, false).
@@ -59,6 +67,9 @@ func RunTUI(opts Options) int {
 			return nil
 		case event.Key() == tcell.KeyCtrlS:
 			st.showSearch(strings.TrimSpace(input.GetText()), out)
+			return nil
+		case event.Key() == tcell.KeyCtrlU:
+			go st.showUpdate(out, app)
 			return nil
 		case event.Key() == tcell.KeyEscape:
 			app.Stop()
@@ -220,7 +231,15 @@ func (st *tuiState) showInstall(text string, out *tview.TextView, a *tview.Appli
 		}
 
 		b.write("установка...\n")
-		plan := BuildPlan(TasksForCheckedInstall(*res, ParseBatchText(text)), Options{Yes: true, NoSecurity: true})
+		secOpts := SecurityOptionsFromEnv()
+		installOpts := Options{
+			Yes: true,
+			NoSecurity: false,
+			VirusTotalKey: secOpts.VirusTotalKey,
+			VirusTotalUpload: secOpts.VirusTotalUpload,
+			AllowUnknown: secOpts.AllowUnknown,
+		}
+		plan := BuildPlan(TasksForCheckedInstall(*res, ParseBatchText(text)), installOpts)
 		r := RunPlan(plan, false)
 		if r.Output != "" {
 			b.write(r.Output)
@@ -256,6 +275,22 @@ func (b *tuiBuf) write(s string) {
 		b.out.SetText(b.buf.String())
 		b.out.ScrollToEnd()
 	})
+}
+
+func (st *tuiState) showUpdate(out *tview.TextView, a *tview.Application) {
+	ui := SelfUpdateCheck()
+	if ui.Error != "" {
+		out.SetText(fmt.Sprintf("[red]update check: %s[white]", ui.Error))
+		return
+	}
+	if !ui.Available {
+		out.SetText(fmt.Sprintf("[green]up to date (v%s)[white]", ui.Current))
+		return
+	}
+	b := &tuiBuf{out: out, app: a}
+	b.write(fmt.Sprintf("Update available: v%s → v%s\n", ui.Current, ui.Latest))
+	b.write(fmt.Sprintf("Asset: %s (%s)\n", ui.AssetName, humanSize(ui.Size)))
+	b.write("\nrun outside TUI: instally --update-self\n")
 }
 
 func srcIcon(kind string) string {
