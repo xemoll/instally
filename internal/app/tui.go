@@ -90,20 +90,47 @@ func RunTUI(opts Options) int {
 type tuiState struct {
 	app  *tview.Application
 	opts Options
+	mu   sync.Mutex
 	scan *ScanInputResult
 	last string
+	stop chan struct{}
+}
+
+func (st *tuiState) setLast(s string) {
+	st.mu.Lock()
+	st.last = s
+	st.mu.Unlock()
+}
+
+func (st *tuiState) getLast() string {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.last
+}
+
+func (st *tuiState) setScan(s *ScanInputResult) {
+	st.mu.Lock()
+	st.scan = s
+	st.mu.Unlock()
+}
+
+func (st *tuiState) getScan() *ScanInputResult {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.scan
 }
 
 func (st *tuiState) showInput(text string, out *tview.TextView) {
-	if text == "" || text == st.last {
+	last := st.getLast()
+	if text == "" || text == last {
 		if text == "" {
 			out.SetText("\n  напиши что установить")
-			st.last = ""
+			st.setLast("")
 			return
 		}
 		return
 	}
-	st.last = text
+	st.setLast(text)
 
 	tasks := ParseBatchText(text)
 	if len(tasks) == 0 {
@@ -151,7 +178,7 @@ func (st *tuiState) showScan(text string, out *tview.TextView) {
 
 	sec := SecurityOptionsFromEnv()
 	res := ScanInputText(text, sec)
-	st.scan = &res
+	st.setScan(&res)
 
 	var lines []string
 	for _, t := range res.Targets {
@@ -209,12 +236,18 @@ func (st *tuiState) showInstall(text string, out *tview.TextView, a *tview.Appli
 		AddItem(lo, 0, 1, false).
 		AddItem(loBar, 1, 0, false), true)
 
+	st.stop = make(chan struct{})
 	go func() {
 		b := &tuiBuf{out: lo, app: a}
+		select {
+		case <-st.stop:
+			return
+		default:
+		}
 		b.write("подготовка...\n")
 
 		sec := SecurityOptionsFromEnv()
-		res := st.scan
+		res := st.getScan()
 		if res == nil {
 			r := ScanInputText(text, sec)
 			res = &r
@@ -254,12 +287,15 @@ func (st *tuiState) showInstall(text string, out *tview.TextView, a *tview.Appli
 		}
 	}()
 
-	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyCtrlC {
-			a.Stop()
-			return nil
-		}
-		return event
+	a.QueueUpdateDraw(func() {
+		a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyCtrlC {
+				close(st.stop)
+				a.Stop()
+				return nil
+			}
+			return event
+		})
 	})
 }
 

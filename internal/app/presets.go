@@ -38,6 +38,22 @@ func presetTasks(items []string) []Task {
 	return mergeTasks(tasks)
 }
 
+func PresetApps(name string) []string {
+	return installPresets[name]
+}
+
+func TasksForPreset(name string) []Task {
+	list, ok := installPresets[name]
+	if !ok {
+		return nil
+	}
+	var tasks []Task
+	for _, item := range list {
+		tasks = append(tasks, AutoTask(item))
+	}
+	return mergeTasks(tasks)
+}
+
 func PresetList() []string {
 	out := make([]string, 0, len(installPresets))
 	for k := range installPresets {
@@ -81,7 +97,7 @@ func KnownAppsList() string {
 }
 
 var (
-	appVersion = "1.2.1"
+	appVersion = "1.2.2"
 	buildDate  = "2026-07-09"
 )
 

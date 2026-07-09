@@ -68,28 +68,14 @@ type ScanInputResult struct {
 }
 
 func readFileWithTimeout(path string, timeout time.Duration) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	type readResult struct {
-		data []byte
-		err  error
-	}
-	ch := make(chan readResult, 1)
-	go func() {
-		data, err := io.ReadAll(f)
-		ch <- readResult{data, err}
-	}()
-	select {
-	case r := <-ch:
-		return r.data, r.err
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
+	f.SetReadDeadline(time.Now().Add(timeout))
+	data, err := io.ReadAll(f)
+	return data, err
 }
 
 func SecurityOptionsFromEnv() SecurityOptions {
@@ -136,9 +122,15 @@ func validateDownloadURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
+type dnsCacheEntry struct {
+	result bool
+	expiry time.Time
+}
+
 var (
-	dnsCacheMu sync.RWMutex
-	dnsCache   = map[string]bool{}
+	dnsCacheMu   sync.RWMutex
+	dnsCache     = map[string]dnsCacheEntry{}
+	dnsCacheTTL  = 5 * time.Minute
 )
 
 func isPrivateHost(host string) bool {
@@ -153,9 +145,9 @@ func isPrivateHost(host string) bool {
 		return false
 	}
 	dnsCacheMu.RLock()
-	if cached, ok := dnsCache[h]; ok {
+	if cached, ok := dnsCache[h]; ok && time.Now().Before(cached.expiry) {
 		dnsCacheMu.RUnlock()
-		return cached
+		return cached.result
 	}
 	dnsCacheMu.RUnlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
@@ -173,7 +165,7 @@ func isPrivateHost(host string) bool {
 		}
 	}
 	dnsCacheMu.Lock()
-	dnsCache[h] = result
+	dnsCache[h] = dnsCacheEntry{result: result, expiry: time.Now().Add(dnsCacheTTL)}
 	dnsCacheMu.Unlock()
 	return result
 }
@@ -367,28 +359,18 @@ func isRequiredSecurityLayer(name string) bool {
 }
 
 func sha256File(path string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
 	h := sha256.New()
-	done := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(h, f)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			return "", err
-		}
-		return hex.EncodeToString(h.Sum(nil)), nil
-	case <-ctx.Done():
-		return "", ctx.Err()
+	f.SetReadDeadline(time.Now().Add(5 * time.Minute))
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return "", err
 	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func detectFileType(path string) string {
@@ -1011,7 +993,9 @@ func runVirusTotal(path string, opts SecurityOptions, rep *SecurityReport) {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "VirusTotal", Status: "limited", Detail: "upload failed: " + err.Error()})
 		return
 	}
-	stats, status, err := vtPollAnalysis(analysisID, key)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	stats, status, err := vtPollAnalysis(ctx, analysisID, key)
 	if err != nil {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "VirusTotal", Status: "limited", Detail: "analysis " + analysisID + ": " + err.Error()})
 		return
@@ -1073,7 +1057,9 @@ func runVirusTotalURL(raw string, opts SecurityOptions) SecurityCheck {
 	if err != nil {
 		return SecurityCheck{Name: "VirusTotal URL", Status: "limited", Detail: err.Error()}
 	}
-	stats, status, err := vtPollAnalysis(analysisID, key)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	stats, status, err := vtPollAnalysis(ctx, analysisID, key)
 	if err != nil {
 		return SecurityCheck{Name: "VirusTotal URL", Status: "limited", Detail: "analysis " + analysisID + ": " + err.Error()}
 	}
@@ -1203,7 +1189,7 @@ func vtMaxUploadSize() int64 {
 	return limit
 }
 
-func vtPollAnalysis(id, key string) (map[string]int, string, error) {
+func vtPollAnalysis(ctx context.Context, id, key string) (map[string]int, string, error) {
 	url := vtAPIBase() + "/analyses/" + id
 	for i := 0; i < 8; i++ {
 		var v vtAnalysisResponse
@@ -1217,7 +1203,11 @@ func vtPollAnalysis(id, key string) (map[string]int, string, error) {
 		if v.Data.Attributes.Status == "completed" {
 			return v.Data.Attributes.Stats, v.Data.Attributes.Status, nil
 		}
-		time.Sleep(time.Duration(i+1) * 2 * time.Second)
+		select {
+		case <-ctx.Done():
+			return nil, "", ctx.Err()
+		case <-time.After(time.Duration(i+1) * 2 * time.Second):
+		}
 	}
 	return nil, "queued", fmt.Errorf("analysis still queued")
 }
@@ -1284,6 +1274,9 @@ func vtJSONOnce(method, reqURL, key string, body io.Reader, contentType string, 
 	}
 	resp, err := vtHTTPClient.Do(req)
 	if err != nil {
+		if resp != nil {
+			resp.Body.Close()
+		}
 		return 0, err
 	}
 	defer resp.Body.Close()

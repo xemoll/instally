@@ -564,7 +564,7 @@ func (p *Plan) addLocal(path string, opts Options) {
 		case ".appx", ".msix", ".appxbundle", ".msixbundle":
 			p.Commands = append(p.Commands, CommandSpec{Title: "Install AppX/MSIX " + filepath.Base(path), Shell: "powershell -NoProfile -ExecutionPolicy Bypass -Command Add-AppxPackage -Path " + winPSQuote(path)})
 		case ".exe":
-			p.Commands = append(p.Commands, CommandSpec{Title: "Run installer " + filepath.Base(path), Shell: "cmd /C start \"Instally\" /WAIT " + winQuote(path)})
+			p.Commands = append(p.Commands, CommandSpec{Title: "Run installer " + filepath.Base(path), Cmd: []string{path}, Admin: true, Shell: ""})
 		default:
 			p.Warnings = append(p.Warnings, "Windows local format пока не имеет безопасной авто-команды: "+ext)
 		}

@@ -10,17 +10,19 @@ import (
 	fyneapp "fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 type uiState struct {
 	window       fyne.Window
+	app          fyne.App
 	input        *widget.Entry
 	status       *widget.Label
+	sourceIcon   *widget.Icon
 	sourceLine   *widget.Label
 	steps        []*widget.Label
-	resultCard   *widget.Card
 	resultTitle  *widget.Label
 	resultText   *widget.Label
 	resultBadge  *widget.Label
@@ -36,32 +38,60 @@ type uiState struct {
 	fileBtn      *widget.Button
 	lastScan     core.ScanInputResult
 	lastText     string
+	presetGrid   *fyne.Container
+	instBtn      *widget.Button
 }
 
 func main() {
 	a := fyneapp.NewWithID("dev.instally.native")
 	a.Settings().SetTheme(theme.DarkTheme())
 	w := a.NewWindow("Instally")
-	w.Resize(fyne.NewSize(1100, 820))
+	w.Resize(fyne.NewSize(1000, 750))
 	w.SetMaster()
 
-	ui := &uiState{window: w}
+	ui := &uiState{window: w, app: a}
 	ui.build(w)
 	w.ShowAndRun()
 }
 
 func (ui *uiState) build(w fyne.Window) {
 	sys := core.Detect()
+	installTab := ui.buildInstallTab(sys)
+	presetsTab := ui.buildPresetsTab()
+	settingsTab := ui.buildSettingsTab()
 
-	brand := widget.NewLabelWithStyle(core.T("app.name"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	statusPill := widget.NewLabelWithStyle("● "+core.SystemLabelForUI(sys), fyne.TextAlignTrailing, fyne.TextStyle{Monospace: true})
+	tabs := container.NewAppTabs(
+		container.NewTabItemWithIcon("Install", theme.DownloadIcon(), installTab),
+		container.NewTabItemWithIcon("Presets", theme.GridIcon(), presetsTab),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsTab),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	w.SetContent(tabs)
+	w.SetOnDropped(func(pos fyne.Position, uris []fyne.URI) {
+		if len(uris) == 0 {
+			return
+		}
+		tabs.SelectTabIndex(0)
+		ui.input.SetText("local: " + uris[0].Path())
+	})
+}
+
+func (ui *uiState) buildInstallTab(sys core.SystemInfo) *fyne.Container {
+	topBar := container.NewBorder(nil, nil,
+		widget.NewLabelWithStyle("Instally", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("● "+core.SystemLabelForUI(sys), fyne.TextAlignTrailing, fyne.TextStyle{Monospace: true}),
+	)
+
+	ui.sourceIcon = widget.NewIcon(theme.MailAttachmentIcon())
+	ui.sourceLine = widget.NewLabel(core.T("source.hint"))
+	sourceRow := container.NewHBox(ui.sourceIcon, ui.sourceLine)
 
 	ui.input = widget.NewEntry()
 	ui.input.SetPlaceHolder(core.T("source.placeholder"))
 	ui.input.Wrapping = fyne.TextWrapOff
 	ui.input.OnChanged = func(s string) {
 		ui.lastScan = core.ScanInputResult{}
-		ui.resultCard.Hide()
 		ui.inspect(s)
 	}
 	ui.input.OnSubmitted = func(string) { ui.safeInstall() }
@@ -70,81 +100,141 @@ func (ui *uiState) build(w fyne.Window) {
 	ui.fileBtn.Importance = widget.LowImportance
 	ui.autoBtn = widget.NewButtonWithIcon(core.T("install.safe"), theme.DownloadIcon(), ui.safeInstall)
 	ui.autoBtn.Importance = widget.HighImportance
+	btnRow := container.NewHBox(ui.fileBtn, ui.autoBtn)
 
-	ui.sourceLine = widget.NewLabel(core.T("source.hint"))
 	ui.status = widget.NewLabel(core.T("ready"))
 	ui.progress = widget.NewProgressBarInfinite()
 	ui.progress.Hide()
-	ui.steps = []*widget.Label{
-		widget.NewLabelWithStyle("○ Источник", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("○ Загрузка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("○ Проверка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("○ Установка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	statusRow := container.NewHBox(ui.status, ui.progress)
+
+	steps := []string{"Source", "Download", "Check", "Install"}
+	ui.steps = make([]*widget.Label, 4)
+	for i, s := range steps {
+		ui.steps[i] = widget.NewLabelWithStyle("○ "+s, fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	}
+	stepsRow := container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3])
 
 	ui.resultTitle = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	ui.resultText = widget.NewLabel("")
 	ui.resultBadge = widget.NewLabel("")
 	ui.meta = widget.NewLabel("")
 	ui.checks = container.NewVBox()
-	ui.resultCard = widget.NewCard("", "", container.NewVBox(ui.resultTitle, ui.resultText, ui.resultBadge, ui.meta, ui.checks))
-	ui.resultCard.Hide()
+	resultCard := widget.NewCard("", "", container.NewVBox(ui.resultTitle, ui.resultText, ui.resultBadge, ui.meta, ui.checks))
 
-	ui.vtKey = widget.NewPasswordEntry()
-	ui.vtKey.SetPlaceHolder(core.T("vt.key.placeholder"))
-	ui.vtUpload = widget.NewCheck(core.T("vt.upload"), nil)
-	ui.allowUnknown = widget.NewCheck(core.T("allow.limited"), nil)
-	planBtn := widget.NewButton(core.T("show.plan"), ui.showPlan)
-	scanOnlyBtn := widget.NewButton(core.T("scan.only"), ui.scan)
 	ui.planText = widget.NewLabel(core.T("plan.placeholder"))
-	langSelect := widget.NewSelect([]string{"ru", "en"}, func(v string) { core.SetAppLanguage(v); _ = core.SaveLanguage(v) })
-	langSelect.SetSelected(core.AppLanguage())
+	scanBtn := widget.NewButton(core.T("scan.only"), ui.scan)
+	planBtn := widget.NewButton(core.T("show.plan"), ui.showPlan)
+	actionRow := container.NewHBox(scanBtn, planBtn)
+
 	ui.log = widget.NewMultiLineEntry()
 	ui.log.SetPlaceHolder(core.T("log.placeholder"))
 	ui.log.Wrapping = fyne.TextWrapWord
 
-	w.SetContent(container.NewVBox(
-		container.NewBorder(nil, nil, brand, statusPill),
-		container.NewHBox(widget.NewIcon(theme.MailAttachmentIcon()), ui.sourceLine),
-		ui.input,
-		container.NewHBox(ui.fileBtn, ui.autoBtn),
-		container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3]),
-		container.NewHBox(ui.status, ui.progress),
-		ui.resultCard,
-		ui.vtKey,
+	stepsCard := widget.NewCard("Progress", "", stepsRow)
+
+	left := container.NewBorder(
+		container.NewVBox(topBar, sourceRow, ui.input, btnRow, statusRow, stepsCard, resultCard, actionRow),
+		nil, nil, nil,
+		ui.planText,
+	)
+	right := container.NewBorder(
+		widget.NewLabelWithStyle("Log", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		nil, nil, nil,
+		ui.log,
+	)
+	split := container.NewHSplit(left, right)
+	split.Offset = 0.5
+	return container.NewPadded(split)
+}
+
+func (ui *uiState) buildPresetsTab() *fyne.Container {
+	presets := core.PresetList()
+	grid := container.NewGridWrap(fyne.NewSize(280, 140))
+	for _, name := range presets {
+		n := name
+		apps := strings.Join(core.PresetApps(n), ", ")
+		card := widget.NewCard(n, apps,
+			widget.NewButtonWithIcon("Install", theme.DownloadIcon(), func() {
+				ui.installPreset(n)
+			}),
+		)
+		grid.Add(card)
+	}
+	scroll := container.NewScroll(grid)
+	return container.NewPadded(scroll)
+}
+
+func (ui *uiState) buildSettingsTab() *fyne.Container {
+	ui.vtKey = widget.NewPasswordEntry()
+	ui.vtKey.SetPlaceHolder(core.T("vt.key.placeholder"))
+	vtStatus := widget.NewButton("VT Status", func() {
+		s := core.VirusTotalStatus()
+		dialog.ShowInformation("VirusTotal", core.JSON(s), ui.window)
+	})
+	vtTest := widget.NewButton("Test Key", func() {
+		rep := core.SecuritySelfTest()
+		pass := strings.Count(rep, "✓")
+		fail := strings.Count(rep, "✗")
+		dialog.ShowInformation("Self-Test", fmt.Sprintf("Pass: %d, Fail: %d\n\n%s", pass, fail, rep), ui.window)
+	})
+
+	ui.vtUpload = widget.NewCheck(core.T("vt.upload"), nil)
+	ui.allowUnknown = widget.NewCheck(core.T("allow.limited"), nil)
+	clearVT := widget.NewButton("Clear VT Key", func() {
+		core.ClearVirusTotalKey()
+		ui.vtKey.SetText("")
+	})
+
+	langSelect := widget.NewSelect([]string{"ru", "en", "uk"}, func(v string) {
+		core.SetAppLanguage(v)
+		_ = core.SaveLanguage(v)
+	})
+	langSelect.SetSelected(core.AppLanguage())
+
+	themeToggle := widget.NewButton("Toggle Theme", func() {
+		if ui.app.Settings().Theme() == theme.DarkTheme() {
+			ui.app.Settings().SetTheme(theme.LightTheme())
+		} else {
+			ui.app.Settings().SetTheme(theme.DarkTheme())
+		}
+	})
+
+	doctorBtn := widget.NewButton("Run Doctor", func() {
+		d := core.Doctor()
+		dialog.ShowInformation("Diagnostics", d, ui.window)
+	})
+	versionBtn := widget.NewButton("Version", func() {
+		dialog.ShowInformation("Version", core.VersionInfo()+core.BuildInfo(), ui.window)
+	})
+
+	form := container.NewVBox(
+		widget.NewCard("Language", "", langSelect),
+		widget.NewCard("Appearance", "", themeToggle),
+		widget.NewCard("VirusTotal API", "", container.NewVBox(
+			ui.vtKey,
+			container.NewHBox(vtStatus, vtTest, clearVT),
+		)),
 		ui.vtUpload,
 		ui.allowUnknown,
-		container.NewGridWithColumns(2, scanOnlyBtn, planBtn),
-		langSelect,
-		ui.planText,
-		ui.log,
+		widget.NewCard("Diagnostics", "", container.NewHBox(doctorBtn, versionBtn)),
+	)
+	return container.NewPadded(container.NewVBox(form, layout.NewSpacer()))
+}
+
+func (ui *uiState) installPreset(name string) {
+	apps := core.PresetApps(name)
+	ui.window.SetContent(container.NewBorder(
+		widget.NewLabelWithStyle("Installing preset: "+name, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		nil, nil, nil,
+		widget.NewLabel("Installing: "+strings.Join(apps, ", ")),
 	))
-	w.SetOnDropped(func(pos fyne.Position, uris []fyne.URI) {
-		if len(uris) == 0 {
-			return
-		}
-		ui.input.SetText("local: " + uris[0].Path())
-	})
-	ui.setSteps(0)
-	ui.inspect("")
-}
-
-func wrappedBold(text string) *widget.Label {
-	l := widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	l.Wrapping = fyne.TextWrapWord
-	return l
-}
-
-func wrappedMuted(text string) *widget.Label {
-	l := widget.NewLabel(text)
-	l.Wrapping = fyne.TextWrapWord
-	return l
-}
-
-func stepLabel(text string) *widget.Label {
-	l := widget.NewLabelWithStyle(text, fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	l.Wrapping = fyne.TextWrapWord
-	return l
+	opts := core.Options{Yes: true}
+	tasks := core.TasksForPreset(name)
+	plan := core.BuildPlan(tasks, opts)
+	res := core.RunPlan(plan, false)
+	dialog.ShowInformation("Result", fmt.Sprintf("Preset %s: %t\n\n%s", name, res.OK, res.Output), ui.window)
+	ui.window.SetContent(nil)
+	ui.build(ui.window)
 }
 
 func (ui *uiState) chooseFile() {
@@ -181,8 +271,8 @@ func (ui *uiState) inspect(text string) {
 	}
 	info := core.InspectInputText(text)
 	if len(info.Sources) == 0 {
-		ui.sourceLine.SetText("Источник пока не распознан. Проверь ссылку или путь к файлу.")
-		ui.status.SetText("Нужно уточнить источник")
+		ui.sourceLine.SetText("Source not recognized.")
+		ui.status.SetText("Need to clarify source")
 		ui.setSteps(0)
 		return
 	}
@@ -196,15 +286,15 @@ func (ui *uiState) inspect(text string) {
 func statusForSource(s core.SourcePreview) string {
 	switch s.SecurityMode {
 	case "download-scan":
-		return "Скачаем во временную папку, проверим и установим."
+		return "Will download to temp, scan and install."
 	case "release-scan":
-		return "Подберём GitHub Release, скачиваемый файл будет проверен."
+		return "Will pick GitHub Release, file will be scanned."
 	case "file-scan":
-		return "Локальный файл будет проверен перед установкой."
+		return "Local file will be scanned before install."
 	case "manager-trust":
-		return "Установка через системный менеджер и его подписи."
+		return "Install via system manager with signatures."
 	case "source-build":
-		return "Source-build требует доверия к репозиторию; смотри план."
+		return "Source-build needs repo trust; check plan."
 	default:
 		return safeLine(s.Detail, 130)
 	}
@@ -241,7 +331,7 @@ func (ui *uiState) scan() {
 func (ui *uiState) showPlan() {
 	text := strings.TrimSpace(ui.input.Text)
 	if text == "" {
-		dialog.ShowInformation("Instally", "Добавь источник, чтобы построить план.", ui.window)
+		dialog.ShowInformation("Instally", "Add a source to build a plan.", ui.window)
 		return
 	}
 	ui.previewPlan()
@@ -261,7 +351,7 @@ func (ui *uiState) previewPlan() {
 	lines := core.PlanLinesForUI(plan, 4)
 	summary := core.PlanSummaryForUI(plan)
 	if len(plan.Warnings) > 0 {
-		summary += "\nПредупреждения: " + safeLine(strings.Join(plan.Warnings, " · "), 220)
+		summary += "\nWarnings: " + safeLine(strings.Join(plan.Warnings, " · "), 220)
 	}
 	ui.planText.SetText(summary + "\n\n" + strings.Join(shortLines(lines, 180), "\n\n"))
 }
@@ -273,10 +363,9 @@ func (ui *uiState) safeInstall() {
 		return
 	}
 	ui.lastText = text
-	ui.resultCard.Show()
-	ui.resultTitle.SetText("Проверяем")
-	ui.resultText.SetText("Проверяем источник. Установка начнётся только если нет опасных признаков.")
-	ui.resultBadge.SetText("проверка")
+	ui.resultTitle.SetText("Checking")
+	ui.resultText.SetText("Checking source. Install will start only if safe.")
+	ui.resultBadge.SetText("checking")
 	ui.meta.SetText("")
 	ui.checks.Objects = nil
 	ui.checks.Refresh()
@@ -284,10 +373,10 @@ func (ui *uiState) safeInstall() {
 	go func() {
 		scan := core.ScanInputText(text, ui.securityOptions())
 		var buf bytes.Buffer
-		buf.WriteString("Instally: проверка источника\n")
+		buf.WriteString("Instally: source check\n")
 		for _, target := range scan.Targets {
-			fmt.Fprintf(&buf, "Источник: %s\n", target.Source)
-			fmt.Fprintf(&buf, "Итог: %s\n", core.SecurityHumanSummaryForUI(target.Report))
+			fmt.Fprintf(&buf, "Source: %s\n", target.Source)
+			fmt.Fprintf(&buf, "Result: %s\n", core.SecurityHumanSummaryForUI(target.Report))
 		}
 		for _, warn := range scan.Warnings {
 			fmt.Fprintf(&buf, "warning: %s\n", warn)
@@ -297,7 +386,7 @@ func (ui *uiState) safeInstall() {
 				ui.lastScan = scan
 				ui.log.SetText(buf.String())
 				ui.renderScan(scan)
-				ui.status.SetText("Установка остановлена: проверка не дала безопасный результат.")
+				ui.status.SetText("Install stopped: security check failed.")
 				ui.ready()
 			})
 			return
@@ -312,22 +401,21 @@ func (ui *uiState) safeInstall() {
 		tasks := core.TasksForCheckedInstall(scan, core.ParseBatchText(text))
 		plan := core.BuildPlan(tasks, installOpts)
 		res := core.RunPlan(plan, false)
-		buf.WriteString("\nInstally: установка из проверенного источника\n")
+		buf.WriteString("\nInstally: install from checked source\n")
 		buf.WriteString(res.Output)
 		fyne.Do(func() {
 			ui.log.SetText(buf.String())
-			ui.resultCard.Show()
 			if res.OK {
 				ui.setSteps(4)
-				ui.resultTitle.SetText("Готово")
-				ui.resultText.SetText("Установка выполнена. Подробности в журнале.")
-				ui.resultBadge.SetText("готово")
+				ui.resultTitle.SetText("Done")
+				ui.resultText.SetText("Install completed. Details in log.")
+				ui.resultBadge.SetText("done")
 				ui.status.SetText(core.T("ready"))
 			} else {
-				ui.resultTitle.SetText("Установка остановлена")
-				ui.resultText.SetText("Один из шагов не выполнился. Подробности есть в журнале.")
-				ui.resultBadge.SetText("ошибка")
-				ui.status.SetText("Процесс остановлен")
+				ui.resultTitle.SetText("Install stopped")
+				ui.resultText.SetText("A step failed. See log for details.")
+				ui.resultBadge.SetText("error")
+				ui.status.SetText("Process stopped")
 			}
 			ui.ready()
 		})
@@ -335,15 +423,14 @@ func (ui *uiState) safeInstall() {
 }
 
 func (ui *uiState) renderScan(res core.ScanInputResult) {
-	ui.resultCard.Show()
 	if !res.OK || len(res.Targets) == 0 {
-		ui.resultTitle.SetText("Не удалось проверить")
+		ui.resultTitle.SetText("Could not scan")
 		if len(res.Warnings) > 0 {
 			ui.resultText.SetText(safeLine(strings.Join(res.Warnings, "\n"), 240))
 		} else {
-			ui.resultText.SetText("Источник не удалось обработать.")
+			ui.resultText.SetText("Could not process source.")
 		}
-		ui.resultBadge.SetText("ошибка")
+		ui.resultBadge.SetText("error")
 		return
 	}
 	t := res.Targets[0]
@@ -351,11 +438,11 @@ func (ui *uiState) renderScan(res core.ScanInputResult) {
 	ui.resultTitle.SetText(core.SecurityHumanTitleForUI(rep))
 	ui.resultText.SetText(core.SecurityHumanSummaryForUI(rep))
 	ui.resultBadge.SetText(core.SecurityStatusFriendly(rep.Status))
-	ui.meta.SetText(fmt.Sprintf("Источник: %s\nФайл: %s · %s", compactUI(t.Source), core.HumanSizeForUI(rep.Size), core.ShortSHAForUI(rep.SHA256)))
+	ui.meta.SetText(fmt.Sprintf("Source: %s\nFile: %s · %s", compactUI(t.Source), core.HumanSizeForUI(rep.Size), core.ShortSHAForUI(rep.SHA256)))
 	ui.checks.Objects = nil
 	for i, c := range rep.Checks {
 		if i >= 6 {
-			ui.checks.Add(wrappedMuted(fmt.Sprintf("…и ещё %d проверок в журнале", len(rep.Checks)-i)))
+			ui.checks.Add(wrappedMuted(fmt.Sprintf("…and %d more checks in log", len(rep.Checks)-i)))
 			break
 		}
 		line := widget.NewLabelWithStyle(checkMark(c.Status)+" "+humanCheckName(c.Name), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
@@ -373,18 +460,30 @@ func (ui *uiState) renderScan(res core.ScanInputResult) {
 	}
 }
 
+func wrappedBold(text string) *widget.Label {
+	l := widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	l.Wrapping = fyne.TextWrapWord
+	return l
+}
+
+func wrappedMuted(text string) *widget.Label {
+	l := widget.NewLabel(text)
+	l.Wrapping = fyne.TextWrapWord
+	return l
+}
+
 func humanCheckName(name string) string {
 	switch name {
 	case "SHA-256":
-		return "Хеш файла"
-	case "Тип файла":
-		return "Тип файла"
+		return "File hash"
+	case "File type":
+		return "File type"
 	case "ClamAV":
-		return "Локальный антивирус"
+		return "Local antivirus"
 	case "VirusTotal":
 		return "VirusTotal"
-	case "Статика":
-		return "Быстрый анализ скрипта"
+	case "Static analysis":
+		return "Static script analysis"
 	default:
 		return name
 	}
@@ -395,6 +494,46 @@ func humanCheckDetail(c core.SecurityCheck) string {
 		return core.ShortSHAForUI(c.Detail)
 	}
 	return c.Detail
+}
+
+func (ui *uiState) busy(text string, step int) {
+	ui.status.SetText(text)
+	ui.setSteps(step)
+	ui.progress.Show()
+	ui.progress.Start()
+	ui.autoBtn.Disable()
+	ui.fileBtn.Disable()
+}
+
+func (ui *uiState) ready() {
+	ui.progress.Stop()
+	ui.progress.Hide()
+	ui.autoBtn.Enable()
+	ui.fileBtn.Enable()
+}
+
+func (ui *uiState) setSteps(active int) {
+	labels := []string{"Source", "Download", "Check", "Install"}
+	for i, l := range labels {
+		icon := "○"
+		if active > i+1 {
+			icon = "✓"
+		} else if active == i+1 {
+			icon = "▶"
+		}
+		ui.steps[i].SetText(icon + " " + l)
+	}
+}
+
+func checkMark(status string) string {
+	switch status {
+	case "clean":
+		return "✓"
+	case "unsafe", "error":
+		return "!"
+	default:
+		return "•"
+	}
 }
 
 func compactUI(s string) string {
@@ -423,44 +562,4 @@ func shortLines(lines []string, max int) []string {
 		out = append(out, safeLine(line, max))
 	}
 	return out
-}
-
-func (ui *uiState) busy(text string, step int) {
-	ui.status.SetText(text)
-	ui.setSteps(step)
-	ui.progress.Show()
-	ui.progress.Start()
-	ui.autoBtn.Disable()
-	ui.fileBtn.Disable()
-}
-
-func (ui *uiState) ready() {
-	ui.progress.Stop()
-	ui.progress.Hide()
-	ui.autoBtn.Enable()
-	ui.fileBtn.Enable()
-}
-
-func (ui *uiState) setSteps(active int) {
-	labels := []string{"Источник", "Загрузка", "Проверка", "Установка"}
-	for i, l := range labels {
-		icon := "○"
-		if active > i+1 {
-			icon = "✓"
-		} else if active == i+1 {
-			icon = "▶"
-		}
-		ui.steps[i].SetText(icon + " " + l)
-	}
-}
-
-func checkMark(status string) string {
-	switch status {
-	case "clean":
-		return "✓"
-	case "unsafe", "error":
-		return "!"
-	default:
-		return "•"
-	}
 }

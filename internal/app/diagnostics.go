@@ -289,7 +289,7 @@ func AutoComplete(shell string) string {
 		"--list-apps", "--list-presets",
 		"--gui", "--terminal", "--terminal-install",
 		"--check-update", "--update-self",
-		"--update", "--upgrade-all", "--upgrade", "--uninstall", "--purge-cache", "--fix-broken",
+		"--update", "--upgrade-all", "--upgrade", "--uninstall", "--remove", "--purge-cache", "--fix-broken",
 		"--install-self", "--full-setup",
 		"--set-default-installer", "--unset-default-installer",
 		"--search", "--which", "--why", "--verify-installed",

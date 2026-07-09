@@ -51,6 +51,7 @@ SELF MANAGEMENT:
   --upgrade-all             Upgrade system + flatpak + snap + Instally
   --upgrade                 Alias for --upgrade-all
   --uninstall <apps>        Remove apps via system package manager
+  --remove                  Alias for --uninstall
 
 DIAGNOSTICS:
   --detect                  Print system info (JSON)
@@ -150,6 +151,7 @@ func main() {
 	flag.BoolVar(&terminalMode, "terminal-install", false, "alias for --terminal")
 	flag.BoolVar(&updateMode, "update", false, "update specified apps")
 	flag.BoolVar(&uninstallMode, "uninstall", false, "remove specified apps via package manager")
+	flag.BoolVar(&uninstallMode, "remove", false, "alias for --uninstall")
 	flag.BoolVar(&upgradeMode, "upgrade-all", false, "upgrade all packages")
 	flag.BoolVar(&upgradeMode, "upgrade", false, "alias for --upgrade-all")
 	flag.BoolVar(&purgeCache, "purge-cache", false, "clear cache")

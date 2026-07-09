@@ -170,6 +170,9 @@ func fetchGitHubReleases(ownerRepo string) ([]ghRelease, error) {
 		}
 		resp, err := client.Do(req)
 		if err != nil {
+			if resp != nil {
+				resp.Body.Close()
+			}
 			lastErr = err
 			continue
 		}
@@ -402,6 +405,9 @@ func downloadFileOnce(rawurl, path string) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		if resp != nil {
+			resp.Body.Close()
+		}
 		return err
 	}
 	defer resp.Body.Close()
