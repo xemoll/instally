@@ -152,7 +152,8 @@ func commandLine(c CommandSpec) string {
 	if len(c.Env) > 0 {
 		keys := make([]string, 0, len(c.Env))
 		for k := range c.Env {
-			if strings.Contains(strings.ToLower(k), "key") || strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "secret") {
+			kl := strings.ToLower(k)
+		if strings.Contains(kl, "key") || strings.Contains(kl, "token") || strings.Contains(kl, "secret") || strings.Contains(kl, "password") || strings.Contains(kl, "credential") || strings.Contains(kl, "auth") || strings.Contains(kl, "apikey") {
 				keys = append(keys, k+"=***")
 			} else {
 				keys = append(keys, k+"="+shellQuote(c.Env[k]))
@@ -227,7 +228,11 @@ func normalizeExt(path string) string {
 
 func ensureDirs() error {
 	for _, p := range []string{cacheDir(), dataDir(), buildDir(), localBin(), filepath.Join(cacheDir(), "downloads"), filepath.Join(dataDir(), "appimages")} {
-		if err := os.MkdirAll(p, 0o755); err != nil {
+		perm := os.FileMode(0o755)
+		if p == cacheDir() || strings.HasPrefix(p, cacheDir()) {
+			perm = 0o700
+		}
+		if err := os.MkdirAll(p, perm); err != nil {
 			return fmt.Errorf("create %s: %w", p, err)
 		}
 	}

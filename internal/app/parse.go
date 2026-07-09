@@ -2,12 +2,16 @@ package app
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
+
+const maxBatchFileSize = 10 * 1024 * 1024
 
 var ownerRepoRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
@@ -101,7 +105,20 @@ func splitMultiItem(s string) []string {
 }
 
 func ParseBatchFile(path string) ([]Task, error) {
-	b, err := os.ReadFile(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if st.Size() > maxBatchFileSize {
+		return nil, fmt.Errorf("batch file too large: %d bytes (max %d)", st.Size(), maxBatchFileSize)
+	}
+	limit := io.LimitReader(f, maxBatchFileSize+1)
+	b, err := io.ReadAll(limit)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +300,7 @@ func isGitURL(raw string) bool {
 func looksDownload(raw string) bool {
 	path := strings.ToLower(raw)
 	for _, ext := range []string{".deb", ".rpm", ".apk", ".msi", ".exe", ".appx", ".msix", ".pkg", ".dmg", ".appimage", ".zip", ".7z", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2", ".tar.zst", ".pkg.tar.zst", ".pkg.tar.xz", ".flatpakref", ".flatpakrepo", ".run", ".bin"} {
-		if strings.Contains(path, ext) {
+		if strings.HasSuffix(path, ext) {
 			return true
 		}
 	}
@@ -309,13 +326,13 @@ func isWindowsPath(raw string) bool {
 func normalizeGitURL(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return raw
+		return "https://github.com/" + sanitizeName(strings.TrimRight(raw, "/")) + ".git"
 	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(parts) >= 2 {
 		return "https://" + u.Host + "/" + parts[0] + "/" + strings.TrimSuffix(parts[1], ".git") + ".git"
 	}
-	return raw
+	return "https://github.com/" + sanitizeName(strings.TrimRight(raw, "/")) + ".git"
 }
 
 func isGitHubRepoURL(raw string) bool {

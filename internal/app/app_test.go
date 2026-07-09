@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -163,7 +164,9 @@ func TestURLPlanUsesGoSafeInstaller(t *testing.T) {
 func TestLinuxRunInstallerHandledAfterScan(t *testing.T) {
 	os.Setenv("INSTALLY_FORCE_PM", "apt")
 	defer os.Unsetenv("INSTALLY_FORCE_PM")
-	p := BuildPlan([]Task{{Kind: "local", Items: []string{"/tmp/setup.run"}}}, Options{Yes: true, DryRun: true, NoSecurity: true})
+	cache := cacheDir()
+	os.MkdirAll(cache, 0o700)
+	p := BuildPlan([]Task{{Kind: "local", Items: []string{filepath.Join(cache, "setup.run")}}}, Options{Yes: true, DryRun: true, NoSecurity: true})
 	if len(p.Commands) == 0 || !strings.Contains(commandLine(p.Commands[0]), "chmod +x") {
 		t.Fatalf("run installer should be executable after scan: %#v", p.Commands)
 	}

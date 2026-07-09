@@ -22,6 +22,7 @@ for f in /tmp/a.AppImage /tmp/a.deb /tmp/a.rpm /tmp/a.pkg.tar.zst /tmp/a.msi /tm
  run "local-$f" "$BIN" --local "$f" --dry-run --yes --allow-unknown
  done
 TMPD=$(mktemp -d)
+trap 'rm -rf "$TMPD"' EXIT INT TERM
 cat > "$TMPD/eicar.com" <<'EICAR'
 X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
 EICAR

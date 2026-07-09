@@ -42,7 +42,7 @@ func main() {
 	a := fyneapp.NewWithID("dev.instally.native")
 	a.Settings().SetTheme(theme.DarkTheme())
 	w := a.NewWindow("Instally")
-	w.Resize(fyne.NewSize(1040, 760))
+	w.Resize(fyne.NewSize(1100, 820))
 	w.SetMaster()
 
 	ui := &uiState{window: w}
@@ -52,9 +52,9 @@ func main() {
 
 func (ui *uiState) build(w fyne.Window) {
 	sys := core.Detect()
+
 	brand := widget.NewLabelWithStyle(core.T("app.name"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	statusPill := widget.NewLabelWithStyle("● "+core.SystemLabelForUI(sys), fyne.TextAlignTrailing, fyne.TextStyle{})
-	header := container.NewBorder(nil, nil, brand, statusPill)
+	statusPill := widget.NewLabelWithStyle("● "+core.SystemLabelForUI(sys), fyne.TextAlignTrailing, fyne.TextStyle{Monospace: true})
 
 	ui.input = widget.NewEntry()
 	ui.input.SetPlaceHolder(core.T("source.placeholder"))
@@ -68,45 +68,27 @@ func (ui *uiState) build(w fyne.Window) {
 
 	ui.fileBtn = widget.NewButtonWithIcon(core.T("choose.file"), theme.FileIcon(), func() { ui.chooseFile() })
 	ui.fileBtn.Importance = widget.LowImportance
-
 	ui.autoBtn = widget.NewButtonWithIcon(core.T("install.safe"), theme.DownloadIcon(), ui.safeInstall)
 	ui.autoBtn.Importance = widget.HighImportance
 
-	linkTitle := wrappedBold(core.T("source.title"))
-	ui.sourceLine = wrappedMuted(core.T("source.hint"))
-	inputCard := widget.NewCard("", "", container.NewPadded(container.NewVBox(
-		container.NewHBox(widget.NewIcon(theme.MailAttachmentIcon()), container.NewVBox(linkTitle, ui.sourceLine)),
-		ui.input,
-		container.NewBorder(nil, nil, ui.fileBtn, ui.autoBtn),
-	)))
-
-	ui.status = wrappedMuted(core.T("ready"))
+	ui.sourceLine = widget.NewLabel(core.T("source.hint"))
+	ui.status = widget.NewLabel(core.T("ready"))
 	ui.progress = widget.NewProgressBarInfinite()
 	ui.progress.Hide()
 	ui.steps = []*widget.Label{
-		stepLabel("○ Источник"),
-		stepLabel("○ Загрузка"),
-		stepLabel("○ Проверка"),
-		stepLabel("○ Установка"),
+		widget.NewLabelWithStyle("○ Источник", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("○ Загрузка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("○ Проверка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("○ Установка", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 	}
-	flow := widget.NewCard("", "", container.NewPadded(container.NewVBox(
-		container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3]),
-		ui.status,
-		ui.progress,
-	)))
 
-	ui.resultTitle = wrappedBold("")
-	ui.resultText = wrappedMuted("")
+	ui.resultTitle = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	ui.resultText = widget.NewLabel("")
 	ui.resultBadge = widget.NewLabel("")
-	ui.meta = wrappedMuted("")
+	ui.meta = widget.NewLabel("")
 	ui.checks = container.NewVBox()
-	resultBody := container.NewVBox(
-		container.NewBorder(nil, nil, nil, ui.resultBadge, container.NewVBox(ui.resultTitle, ui.resultText)),
-		widget.NewSeparator(),
-		ui.meta,
-		ui.checks,
-	)
-	ui.resultCard = widget.NewCard("", "", container.NewPadded(resultBody))
+	resultBody := container.NewVBox(ui.resultTitle, ui.resultText, ui.resultBadge, ui.meta, ui.checks)
+	ui.resultCard = widget.NewCard("", "", resultBody)
 	ui.resultCard.Hide()
 
 	ui.vtKey = widget.NewPasswordEntry()
@@ -115,31 +97,38 @@ func (ui *uiState) build(w fyne.Window) {
 	ui.allowUnknown = widget.NewCheck(core.T("allow.limited"), nil)
 	planBtn := widget.NewButton(core.T("show.plan"), ui.showPlan)
 	scanOnlyBtn := widget.NewButton(core.T("scan.only"), ui.scan)
-	ui.planText = wrappedMuted(core.T("plan.placeholder"))
+	ui.planText = widget.NewLabel(core.T("plan.placeholder"))
 	langSelect := widget.NewSelect([]string{"ru", "en"}, func(v string) { core.SetAppLanguage(v); _ = core.SaveLanguage(v) })
 	langSelect.SetSelected(core.AppLanguage())
-	advancedContent := container.NewVBox(
-		widget.NewLabel(core.T("language")),
+	advBody := container.NewVBox(
+		widget.NewLabelWithStyle(core.T("language"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		langSelect,
-		ui.vtKey,
-		ui.vtUpload,
-		ui.allowUnknown,
+		widget.NewLabelWithStyle("VirusTotal", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		ui.vtKey, ui.vtUpload, ui.allowUnknown,
 		container.NewGridWithColumns(2, scanOnlyBtn, planBtn),
-		widget.NewSeparator(),
 		ui.planText,
 	)
-	advanced := widget.NewAccordion(widget.NewAccordionItem(core.T("advanced"), container.NewPadded(advancedContent)))
-
+	advanced := widget.NewAccordion(widget.NewAccordionItem(core.T("advanced"), container.NewPadded(advBody)))
 	ui.log = widget.NewMultiLineEntry()
 	ui.log.SetPlaceHolder(core.T("log.placeholder"))
 	ui.log.Wrapping = fyne.TextWrapWord
-	logPanel := widget.NewAccordion(widget.NewAccordionItem(core.T("log"), container.NewVScroll(ui.log)))
+	logPane := widget.NewAccordion(widget.NewAccordionItem(core.T("log"), container.NewVScroll(ui.log)))
 
-	content := container.NewVBox(
-		header,
-		container.NewPadded(container.NewVBox(inputCard, flow, ui.resultCard, advanced, logPanel)),
-	)
-	w.SetContent(container.NewScroll(content))
+	w.SetContent(container.NewVBox(
+		container.NewPadded(container.NewBorder(nil, nil, brand, statusPill)),
+		widget.NewCard("", "", container.NewVBox(
+			container.NewHBox(widget.NewIcon(theme.MailAttachmentIcon()), ui.sourceLine),
+			ui.input,
+			container.NewHBox(ui.fileBtn, ui.autoBtn),
+		)),
+		widget.NewCard("", "", container.NewVBox(
+			container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3]),
+			container.NewHBox(ui.status, ui.progress),
+		)),
+		ui.resultCard,
+		advanced,
+		logPane,
+	))
 	w.SetOnDropped(func(pos fyne.Position, uris []fyne.URI) {
 		if len(uris) == 0 {
 			return
@@ -163,7 +152,7 @@ func wrappedMuted(text string) *widget.Label {
 }
 
 func stepLabel(text string) *widget.Label {
-	l := widget.NewLabelWithStyle(text, fyne.TextAlignCenter, fyne.TextStyle{})
+	l := widget.NewLabelWithStyle(text, fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	l.Wrapping = fyne.TextWrapWord
 	return l
 }
@@ -465,13 +454,13 @@ func (ui *uiState) ready() {
 func (ui *uiState) setSteps(active int) {
 	labels := []string{"Источник", "Загрузка", "Проверка", "Установка"}
 	for i, l := range labels {
-		prefix := "○"
+		icon := "○"
 		if active > i+1 {
-			prefix = "✓"
+			icon = "✓"
 		} else if active == i+1 {
-			prefix = "●"
+			icon = "▶"
 		}
-		ui.steps[i].SetText(prefix + " " + l)
+		ui.steps[i].SetText(icon + " " + l)
 	}
 }
 

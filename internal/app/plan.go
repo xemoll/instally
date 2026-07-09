@@ -517,7 +517,12 @@ func (p *Plan) addLocal(path string, opts Options) {
 		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 		dst := filepath.Join(dataDir(), "appimages", filepath.Base(path))
 		link := filepath.Join(localBin(), sanitizeName(name))
-		p.Commands = append(p.Commands, CommandSpec{Title: "Install AppImage " + filepath.Base(path), Shell: fmt.Sprintf("mkdir -p %s %s && cp %s %s && chmod +x %s && ln -sf %s %s", shellQuote(filepath.Dir(dst)), shellQuote(filepath.Dir(link)), shellQuote(path), shellQuote(dst), shellQuote(dst), shellQuote(dst), shellQuote(link))})
+		p.Commands = append(p.Commands,
+			CommandSpec{Title: "Create AppImage dirs", Cmd: []string{"mkdir", "-p", filepath.Dir(dst), filepath.Dir(link)}},
+			CommandSpec{Title: "Copy AppImage", Cmd: []string{"cp", path, dst}},
+			CommandSpec{Title: "Set executable", Cmd: []string{"chmod", "+x", dst}},
+			CommandSpec{Title: "Symlink to bin", Cmd: []string{"ln", "-sf", dst, link}},
+		)
 		return
 	}
 	if ext == ".flatpakref" || ext == ".flatpakrepo" {
@@ -530,7 +535,15 @@ func (p *Plan) addLocal(path string, opts Options) {
 		return
 	}
 	if sys.Family == Linux && (ext == ".run" || ext == ".bin" || ext == ".sh") {
-		p.Commands = append(p.Commands, CommandSpec{Title: "Run installer " + filepath.Base(path), Shell: fmt.Sprintf("chmod +x %s && %s", shellQuote(path), shellQuote(path)), Admin: ext == ".run" || ext == ".bin"})
+		if !strings.HasPrefix(path, cacheDir()) && !strings.HasPrefix(path, dataDir()) && !strings.HasPrefix(path, buildDir()) {
+			p.Warnings = append(p.Warnings, "файл вне доверенной директории (cache/data/build), установка заблокирована: "+path)
+			return
+		}
+		admin := ext == ".run" || ext == ".bin"
+		p.Commands = append(p.Commands,
+			CommandSpec{Title: "Set executable " + filepath.Base(path), Cmd: []string{"chmod", "+x", path}},
+			CommandSpec{Title: "Run installer " + filepath.Base(path), Cmd: []string{path}, Admin: admin},
+		)
 		return
 	}
 	if sys.Family == Linux {
@@ -643,7 +656,11 @@ func sanitizeName(s string) string {
 	return out
 }
 
-func winQuote(s string) string   { return "\"" + strings.ReplaceAll(s, "\"", "\\\"") + "\"" }
+func winQuote(s string) string {
+	s = strings.ReplaceAll(s, "%", "%%")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	return "\"" + s + "\""
+}
 func winPSQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 
 func BuildUpdatePlan(items []string, opts Options) Plan {
@@ -710,9 +727,26 @@ func BuildUpgradePlan(opts Options) Plan {
 
 func PurgeCache() int {
 	cache := cacheDir()
+	cacheReal, err := filepath.EvalSymlinks(cache)
+	if err != nil {
+		cacheReal = cache
+	}
 	count := 0
 	_ = filepath.Walk(cache, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || path == cache {
+		if err != nil || path == cache {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		realPath, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return nil
+		}
+		if !strings.HasPrefix(realPath, cacheReal) {
 			return nil
 		}
 		if err := os.Remove(path); err == nil {

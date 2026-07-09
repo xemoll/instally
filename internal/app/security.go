@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -64,6 +65,31 @@ type ScanInputResult struct {
 	Safe     bool         `json:"safe"`
 	Targets  []ScanTarget `json:"targets"`
 	Warnings []string     `json:"warnings,omitempty"`
+}
+
+func readFileWithTimeout(path string, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	ch := make(chan readResult, 1)
+	go func() {
+		data, err := io.ReadAll(f)
+		ch <- readResult{data, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.data, r.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func SecurityOptionsFromEnv() SecurityOptions {
@@ -110,6 +136,11 @@ func validateDownloadURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
+var (
+	dnsCacheMu sync.RWMutex
+	dnsCache   = map[string]bool{}
+)
+
 func isPrivateHost(host string) bool {
 	h := strings.ToLower(strings.Trim(host, "[]"))
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") || h == "local" {
@@ -121,25 +152,39 @@ func isPrivateHost(host string) bool {
 	if boolEnv("INSTALLY_SKIP_DNS_PRIVATE_CHECK") {
 		return false
 	}
+	dnsCacheMu.RLock()
+	if cached, ok := dnsCache[h]; ok {
+		dnsCacheMu.RUnlock()
+		return cached
+	}
+	dnsCacheMu.RUnlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, h)
 	if err != nil {
 		return false
 	}
+	result := false
 	for _, addr := range addrs {
 		ip := addr.IP
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
-			return true
+			result = true
+			break
 		}
 	}
-	return false
+	dnsCacheMu.Lock()
+	dnsCache[h] = result
+	dnsCacheMu.Unlock()
+	return result
 }
 
 func envForSecurity(opts Options) map[string]string {
 	env := map[string]string{}
-	if opts.VirusTotalKey != "" {
-		env["INSTALLY_VT_API_KEY"] = opts.VirusTotalKey
+	if opts.VirusTotalKey != "" && !opts.DryRun {
+		if path, err := writeEphemeralKeyFile(opts.VirusTotalKey); err == nil {
+			env["INSTALLY_VT_KEY_FILE"] = path
+			env["INSTALLY_SECRET_CLEANUP"] = path
+		}
 	}
 	if opts.VirusTotalUpload {
 		env["INSTALLY_VT_UPLOAD"] = "1"
@@ -322,16 +367,28 @@ func isRequiredSecurityLayer(name string) bool {
 }
 
 func sha256File(path string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+	done := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(h, f)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			return "", err
+		}
+		return hex.EncodeToString(h.Sum(nil)), nil
+	case <-ctx.Done():
+		return "", ctx.Err()
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func detectFileType(path string) string {
@@ -360,7 +417,7 @@ func runEmbeddedSignatureCheck(path string, rep *SecurityReport) {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "Embedded signatures", Status: "skipped", Detail: "файл не подходит для встроенных быстрых сигнатур"})
 		return
 	}
-	b, err := os.ReadFile(path)
+	b, err := readFileWithTimeout(path, 30*time.Second)
 	if err != nil {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "Embedded signatures", Status: "limited", Detail: err.Error()})
 		return
@@ -392,6 +449,12 @@ rule Instally_Suspicious_PowerShell_Encoded { strings: $a = "powershell" nocase 
 		return
 	}
 	defer os.Remove(f.Name())
+	if err := f.Chmod(0o600); err != nil {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+		rep.Checks = append(rep.Checks, SecurityCheck{Name: "YARA", Status: "limited", Detail: err.Error()})
+		return
+	}
 	if _, err := f.WriteString(rules); err != nil {
 		_ = f.Close()
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "YARA", Status: "limited", Detail: err.Error()})
@@ -540,7 +603,7 @@ func runStaticHeuristics(path string, rep *SecurityReport) {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "Статический анализ", Status: "skipped", Detail: "Файл слишком большой/бинарный для лёгкой эвристики"})
 		return
 	}
-	b, err := os.ReadFile(path)
+	b, err := readFileWithTimeout(path, 30*time.Second)
 	if err != nil {
 		rep.Checks = append(rep.Checks, SecurityCheck{Name: "Статический анализ", Status: "limited", Detail: err.Error()})
 		return
@@ -1159,18 +1222,57 @@ func vtPollAnalysis(id, key string) (map[string]int, string, error) {
 	return nil, "queued", fmt.Errorf("analysis still queued")
 }
 
+var vtHTTPClient = &http.Client{
+	Timeout: 90 * time.Second,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 3 {
+			return fmt.Errorf("too many redirects")
+		}
+		if !strings.HasSuffix(strings.ToLower(req.URL.Hostname()), ".virustotal.com") {
+			return fmt.Errorf("redirect blocked: not a VirusTotal host: %s", req.URL.Hostname())
+		}
+		return nil
+	},
+}
+
+const vtMaxResponseBytes = 10 * 1024 * 1024
+
 func vtAPIBase() string {
 	base := strings.TrimRight(strings.TrimSpace(os.Getenv("INSTALLY_VT_API_BASE")), "/")
 	if base == "" {
 		return "https://www.virustotal.com/api/v3"
 	}
+	u, err := url.Parse(base)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return "https://www.virustotal.com/api/v3"
+	}
 	return base
 }
 
-func vtJSON(method, url, key string, body io.Reader, contentType string, out any) (int, error) {
+func vtJSON(method, reqURL, key string, body io.Reader, contentType string, out any) (int, error) {
+	var lastErr error
+	for attempt := range 3 {
+		if attempt > 0 {
+			backoff := time.Duration(1<<attempt) * time.Second
+			time.Sleep(backoff)
+		}
+		code, err := vtJSONOnce(method, reqURL, key, body, contentType, out)
+		if err == nil && code < 500 && code != 429 {
+			return code, nil
+		}
+		if code == 429 || code >= 500 {
+			lastErr = fmt.Errorf("VirusTotal HTTP %d (attempt %d)", code, attempt+1)
+			continue
+		}
+		return code, err
+	}
+	return 0, lastErr
+}
+
+func vtJSONOnce(method, reqURL, key string, body io.Reader, contentType string, out any) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, body)
 	if err != nil {
 		return 0, err
 	}
@@ -1180,12 +1282,13 @@ func vtJSON(method, url, key string, body io.Reader, contentType string, out any
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := vtHTTPClient.Do(req)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
-	dec := json.NewDecoder(resp.Body)
+	limited := io.LimitReader(resp.Body, vtMaxResponseBytes)
+	dec := json.NewDecoder(limited)
 	if err := dec.Decode(out); err != nil && resp.StatusCode != 404 {
 		return resp.StatusCode, err
 	}
@@ -1446,12 +1549,15 @@ func DownloadGitHubReleaseForScan(ownerRepo string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(cacheDir(), "downloads", sanitizeName(ownerRepo))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, asset.Name)
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
+	if st, err := os.Stat(path); err == nil {
+		if !st.IsDir() && st.Size() > 0 && (asset.Size <= 0 || st.Size() == asset.Size) {
+			return path, nil
+		}
+		_ = os.Remove(path)
 	}
 	return path, downloadFile(asset.URL, path)
 }

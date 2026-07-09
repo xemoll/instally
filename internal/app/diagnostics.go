@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -183,9 +184,26 @@ func VerifyInstalled(apps []string) string {
 }
 
 func ExportPlan(tasks []Task, opts Options, file string) error {
+	if file == "" {
+		return fmt.Errorf("export plan: file path is empty")
+	}
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return fmt.Errorf("export plan: cannot resolve path: %w", err)
+	}
+	if strings.ContainsAny(abs, "\x00\n\r\t") {
+		return fmt.Errorf("export plan: path contains control characters")
+	}
+	if err := os.MkdirAll(filepath.Dir(abs), 0o700); err != nil {
+		return fmt.Errorf("export plan: cannot create directory: %w", err)
+	}
 	plan := BuildPlan(tasks, opts)
 	data := JSON(plan)
-	return os.WriteFile(file, []byte(data), 0o644)
+	tmp := abs + ".tmp"
+	if err := os.WriteFile(tmp, []byte(data), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, abs)
 }
 
 func EnvReport() string {
@@ -233,14 +251,14 @@ func FixBroken() string {
 	b.WriteString("Attempting to fix broken package manager state...\n\n")
 
 	scripts := map[string]string{
-		"apt":     "dpkg --configure -a && apt-get install -f -y",
+		"apt":      "dpkg --configure -a && apt-get install -f -y",
 		"apt-get":  "dpkg --configure -a && apt-get install -f -y",
-		"pacman":  "pacman -Syu --noconfirm || pacman --sync --refresh --sysupgrade --noconfirm",
-		"dnf":     "dnf check && dnf reinstall -y $(dnf repoquery --unsatisfied 2>/dev/null || echo '') || dnf distro-sync -y",
-		"zypper":  "zypper --non-interactive verify",
-		"apk":     "apk fix",
+		"pacman":   "pacman -Syu --noconfirm || pacman --sync --refresh --sysupgrade --noconfirm",
+		"dnf":      "dnf check && dnf reinstall -y $(dnf repoquery --unsatisfied 2>/dev/null || echo '') || dnf distro-sync -y",
+		"zypper":   "zypper --non-interactive verify",
+		"apk":      "apk fix",
 		"winget":   "winget source reset --force",
-		"brew":    "brew doctor && brew upgrade",
+		"brew":     "brew doctor && brew upgrade",
 	}
 
 	script, ok := scripts[m.ID]
@@ -248,11 +266,17 @@ func FixBroken() string {
 		return fmt.Sprintf("No fix-known script for %s\n", m.ID)
 	}
 
-	cmd := exec.Command("/bin/sh", "-c", script)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script)
 	out, err := cmd.CombinedOutput()
 	b.WriteString(fmt.Sprintf("Fix command: %s\n", script))
 	if err != nil {
-		b.WriteString(fmt.Sprintf("Fix completed with non-zero exit: %s\n", err))
+		if ctx.Err() == context.DeadlineExceeded {
+			b.WriteString("Fix command timed out after 5 minutes\n")
+		} else {
+			b.WriteString(fmt.Sprintf("Fix completed with non-zero exit: %s\n", err))
+		}
 	}
 	b.WriteString(fmt.Sprintf("Output:\n%s\n", out))
 	return b.String()

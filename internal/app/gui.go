@@ -130,13 +130,19 @@ func ServeGUI(opts ServerOptions) error {
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, Detect()) })
 	mux.HandleFunc("/api/inspect", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid request: " + err.Error()})
+			return
+		}
 		writeJSON(w, InspectInputText(req.Text))
 	})
 	mux.HandleFunc("/api/doctor", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]string{"text": Doctor()}) })
 	mux.HandleFunc("/api/scan", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid request: " + err.Error()})
+			return
+		}
 		writeJSON(w, ScanInputText(req.Text, req.securityOptions()))
 	})
 	mux.HandleFunc("/api/upload-scan", func(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +162,7 @@ func ServeGUI(opts ServerOptions) error {
 		}
 		defer f.Close()
 		dir := filepath.Join(cacheDir(), "uploads")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
@@ -189,18 +195,27 @@ func ServeGUI(opts ServerOptions) error {
 	})
 	mux.HandleFunc("/api/plan", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid request: " + err.Error()})
+			return
+		}
 		writeJSON(w, BuildPlan(ParseBatchText(req.Text), req.options()))
 	})
 	mux.HandleFunc("/api/run", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid request: " + err.Error()})
+			return
+		}
 		plan := BuildPlan(ParseBatchText(req.Text), req.options())
 		writeJSON(w, RunPlan(plan, req.DryRun))
 	})
 	mux.HandleFunc("/api/run-stream", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -212,7 +227,10 @@ func ServeGUI(opts ServerOptions) error {
 	})
 	mux.HandleFunc("/api/safe-run-stream", func(w http.ResponseWriter, r *http.Request) {
 		var req guiRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -263,7 +281,9 @@ func parseBoolString(v string) bool {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		http.Error(w, `{"ok":false,"error":"json encode failed"}`, http.StatusInternalServerError)
+	}
 }
 
 func openBrowser(url string) {

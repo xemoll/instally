@@ -6,8 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 )
+
+var configMu sync.Mutex
 
 type UserConfig struct {
 	VirusTotalAPIKey string `json:"virus_total_api_key,omitempty"`
@@ -17,7 +21,7 @@ type UserConfig struct {
 func configPath() string { return filepath.Join(dataDir(), "config.json") }
 
 func LoadConfig() UserConfig {
-	b, err := os.ReadFile(configPath())
+	b, err := readFileWithTimeout(configPath(), 5*time.Second)
 	if err != nil {
 		return UserConfig{}
 	}
@@ -28,6 +32,8 @@ func LoadConfig() UserConfig {
 }
 
 func SaveConfig(c UserConfig) error {
+	configMu.Lock()
+	defer configMu.Unlock()
 	if err := os.MkdirAll(dataDir(), 0o700); err != nil {
 		return err
 	}
@@ -36,7 +42,11 @@ func SaveConfig(c UserConfig) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configPath(), b, 0o600)
+	tmp := configPath() + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, configPath())
 }
 
 func SaveVirusTotalKey(key string) error {
@@ -80,7 +90,7 @@ func VirusTotalStatus() string {
 		source = "secure key file"
 	} else if strings.TrimSpace(cfg.VirusTotalAPIKey) != "" {
 		configured = true
-		source = "config " + configPath()
+		source = "saved user config"
 	}
 	upload := boolEnv("INSTALLY_VT_UPLOAD")
 	large := vtMaxUploadSize()
@@ -149,7 +159,7 @@ func readKeyFile(path string) string {
 	if path == "" {
 		return ""
 	}
-	b, err := os.ReadFile(path)
+	b, err := readFileWithTimeout(path, 5*time.Second)
 	if err != nil {
 		return ""
 	}

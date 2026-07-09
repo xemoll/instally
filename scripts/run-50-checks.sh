@@ -25,24 +25,26 @@ say() {
 ok()   { say "${GREEN}ok${NC}   $1"; }
 fail() { say "${RED}FAIL${NC} $1"; }
 
+CKOUT="$TMP/check.out"
+CKERR="$TMP/check.err"
 run_ok(){
   local name="$1"; shift
   echo "### $name" >> "$LOG"
-  if "$@" >/tmp/instally-check.out 2>/tmp/instally-check.err; then
+  if "$@" >"$CKOUT" 2>"$CKERR"; then
     ok "$name"
     pass=$((pass+1))
   else
     fail "$name"
-    cat /tmp/instally-check.out /tmp/instally-check.err | head -20 >> "$LOG"
+    cat "$CKOUT" "$CKERR" | head -20 >> "$LOG"
     fail=$((fail+1))
   fi
 }
 run_fail(){
   local name="$1"; shift
   echo "### $name" >> "$LOG"
-  if "$@" >/tmp/instally-check.out 2>/tmp/instally-check.err; then
+  if "$@" >"$CKOUT" 2>"$CKERR"; then
     fail "${name} (expected failure)"
-    cat /tmp/instally-check.out /tmp/instally-check.err | head -10 >> "$LOG"
+    cat "$CKOUT" "$CKERR" | head -10 >> "$LOG"
     fail=$((fail+1))
   else
     ok "$name"

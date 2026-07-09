@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -152,7 +154,19 @@ func fetchGitHubReleases(ownerRepo string) ([]ghRelease, error) {
 		if token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN")); token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
-		client := &http.Client{Timeout: 30 * time.Second}
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 5 {
+					return fmt.Errorf("too many redirects")
+				}
+				h := strings.ToLower(req.URL.Hostname())
+				if !strings.HasSuffix(h, "github.com") && !strings.HasSuffix(h, "githubusercontent.com") {
+					return fmt.Errorf("redirect blocked: not a GitHub host: %s", h)
+				}
+				return nil
+			},
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
@@ -378,11 +392,14 @@ func downloadFileOnce(rawurl, path string) error {
 		return err
 	}
 	tmp := path + ".part"
-	f, err := os.Create(tmp)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
-	n, copyErr := io.Copy(f, io.LimitReader(resp.Body, maxDownloadSize+1))
+	hasher := sha256.New()
+	limited := io.LimitReader(resp.Body, maxDownloadSize+1)
+	multi := io.MultiWriter(f, hasher)
+	n, copyErr := io.Copy(multi, limited)
 	closeErr := f.Close()
 	if copyErr != nil {
 		_ = os.Remove(tmp)
@@ -400,5 +417,17 @@ func downloadFileOnce(rawurl, path string) error {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("download size mismatch: got %s, expected %s", humanSize(n), humanSize(resp.ContentLength))
 	}
-	return os.Rename(tmp, path)
+	downloadedSHA := hex.EncodeToString(hasher.Sum(nil))
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	if err := writeDownloadIntegrity(path, downloadedSHA); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeDownloadIntegrity(path, sha string) error {
+	sumPath := path + ".sha256"
+	return os.WriteFile(sumPath, []byte(sha+"  "+filepath.Base(path)+"\n"), 0o600)
 }

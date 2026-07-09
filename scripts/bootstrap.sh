@@ -41,11 +41,13 @@ check "go test"         go test ./... -count=1 -timeout=180s
 
 echo ""
 echo -e "${YELLOW}Build:${NC}"
-check "build"           go build -trimpath -o /tmp/instally-bootstrap ./cmd/instally
+BOOTSTRAP_BIN="$(mktemp)"
+trap 'rm -f "$BOOTSTRAP_BIN"' EXIT INT TERM
+check "build" go build -trimpath -o "$BOOTSTRAP_BIN" ./cmd/instally
 
 echo ""
 echo -e "${YELLOW}Security self-test:${NC}"
-check "security test"   /tmp/instally-bootstrap --security-test
+check "security test"   "$BOOTSTRAP_BIN" --security-test
 
 echo ""
 echo -e "${YELLOW}Shell scripts syntax:${NC}"
@@ -60,7 +62,7 @@ done
 
 echo ""
 echo -e "${YELLOW}Doctor:${NC}"
-/tmp/instally-bootstrap --doctor || true
+"$BOOTSTRAP_BIN" --doctor || true
 
 echo ""
 echo -e "${CYAN}==============================${NC}"

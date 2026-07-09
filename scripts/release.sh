@@ -4,6 +4,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 VERSION="${1:-$(git describe --tags --always --dirty 2>/dev/null || echo "dev")}"
+VERSION="$(printf '%s' "$VERSION" | tr -d " '\\\$\";|&<>()" 2>/dev/null || echo "dev")"
 OUTDIR="${2:-dist/release}"
 mkdir -p "$OUTDIR"
 

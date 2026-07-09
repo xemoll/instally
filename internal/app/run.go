@@ -325,7 +325,7 @@ func runCommandNoRetry(c CommandSpec) (int, string, error) {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
 	}
-	var out bytes.Buffer
+	var out, errBuf bytes.Buffer
 	if c.Admin || c.Shell != "" {
 		// Keep stdin attached so sudo/pkexec/script installers can ask for input,
 		// but capture stdout/stderr here. The streaming runner is responsible for
@@ -333,7 +333,7 @@ func runCommandNoRetry(c CommandSpec) (int, string, error) {
 		cmd.Stdin = os.Stdin
 	}
 	cmd.Stdout = &out
-	cmd.Stderr = &out
+	cmd.Stderr = &errBuf
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		return 124, out.String(), fmt.Errorf("command timed out after %s: %s", commandTimeout(c), commandLine(c))
@@ -343,6 +343,9 @@ func runCommandNoRetry(c CommandSpec) (int, string, error) {
 		code = 1
 		if exit, ok := err.(*exec.ExitError); ok {
 			code = exit.ExitCode()
+		}
+		if errBuf.Len() > 0 {
+			err = fmt.Errorf("%w\nstderr:\n%s", err, strings.TrimSpace(errBuf.String()))
 		}
 	}
 	return code, out.String(), err
