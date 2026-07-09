@@ -129,10 +129,21 @@ instally --dry-run firefox git vscode           # предпросмотр
 ## Обновление
 
 ```bash
-instally --update firefox git     # обновить конкретные
-instally --upgrade-all            # обновить все
+instally --update firefox git     # обновить конкретные пакеты
+instally --update instally        # обновить Instally
+instally --update                 # обновить все пакеты + Instally
+instally --upgrade-all            # upgrade системы + flatpak + snap + Instally
+instally --check-update           # проверить версию Instally
+instally --update-self            # скачать и установить новую Instally
 instally --purge-cache            # очистить кэш
 ```
+
+Instally умеет обновлять себя через GitHub:
+- `--check-update` — проверяет релизы `xemoll/instally`
+- `--update-self` — скачивает подходящий бинарник под вашу ОС,
+  сканирует его, сохраняет резервную копию и заменяет текущий
+- `--update instally` — то же самое через общий механизм обновления
+- `--upgrade-all` — обновляет пакеты системы + flatpak + snap + Instally
 
 ## Поддерживаемые менеджеры
 

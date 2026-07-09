@@ -665,23 +665,65 @@ func winPSQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''")
 
 func BuildUpdatePlan(items []string, opts Options) Plan {
 	sys := Detect()
-	items, warns := validateInstallItems("pkg", items)
 	p := Plan{System: sys, ContinueOnError: true}
-	p.Warnings = warns
 	m := sys.Manager
-	if m.ID == "none" || len(m.Update) == 0 {
-		p.Warnings = append(p.Warnings, "Package manager does not support updating specific packages")
-		return p
-	}
+	flatpakTool := sys.Tools["flatpak"]
+	snapTool := sys.Tools["snap"]
+
 	for _, item := range items {
-		cmd := append([]string{}, m.Update...)
-		cmd = append(cmd, item)
-		p.Commands = append(p.Commands, CommandSpec{
-			Title:          "Update " + item,
-			Cmd:            cmd,
-			Admin:          m.NeedsElev,
-			TimeoutSeconds:  300,
-		})
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if strings.HasPrefix(item, "flatpak:") || strings.HasPrefix(item, "flathub:") {
+			id := strings.TrimSpace(item[strings.IndexByte(item, ':')+1:])
+			if flatpakTool != "" {
+				p.Commands = append(p.Commands, CommandSpec{
+					Title: "Update flatpak " + id,
+					Cmd:   []string{"flatpak", "update", "-y", id},
+				})
+			} else {
+				p.Warnings = append(p.Warnings, "flatpak not installed, can't update: "+id)
+			}
+			continue
+		}
+		if strings.HasPrefix(item, "snap:") {
+			id := strings.TrimSpace(item[len("snap:"):])
+			if snapTool != "" {
+				p.Commands = append(p.Commands, CommandSpec{
+					Title: "Update snap " + id,
+					Cmd:   []string{"snap", "refresh", id},
+					Admin: true,
+				})
+			} else {
+				p.Warnings = append(p.Warnings, "snap not installed, can't update: "+id)
+			}
+			continue
+		}
+		if item == "instally" || strings.EqualFold(item, SelfPath()) {
+			info := SelfUpdateCheck()
+			if info.Available {
+				p.Commands = append(p.Commands, CommandSpec{
+					Title: "Update Instally",
+					Shell: SelfPath() + " --update-self --yes",
+				})
+			} else {
+				p.Warnings = append(p.Warnings, "Instally already up to date")
+			}
+			continue
+		}
+		if m.ID != "none" && len(m.Update) > 0 {
+			cmd := append([]string{}, m.Update...)
+			cmd = append(cmd, item)
+			p.Commands = append(p.Commands, CommandSpec{
+				Title:          "Update " + item,
+				Cmd:            cmd,
+				Admin:          m.NeedsElev,
+				TimeoutSeconds: 300,
+			})
+		} else {
+			p.Warnings = append(p.Warnings, "Can't update "+item+": no package manager with update support")
+		}
 	}
 	return p
 }
@@ -690,38 +732,66 @@ func BuildUpgradePlan(opts Options) Plan {
 	sys := Detect()
 	p := Plan{System: sys}
 	m := sys.Manager
+
 	if m.ID == "none" || len(m.Update) == 0 {
 		p.Warnings = append(p.Warnings, "Package manager not found or does not support upgrade")
-		return p
 	}
-	var cmd []string
-	switch m.ID {
-	case "apt-get", "apt":
-		cmd = []string{m.ID, "upgrade", "-y"}
-	case "pacman":
-		cmd = []string{"pacman", "-Syu", "--noconfirm"}
-	case "dnf", "yum":
-		cmd = []string{m.ID, "upgrade", "-y"}
-	case "zypper":
-		cmd = []string{"zypper", "update", "-y"}
-	case "apk":
-		cmd = []string{"apk", "upgrade"}
-	case "winget":
-		cmd = []string{"winget", "upgrade", "--all"}
-	case "brew":
-		cmd = []string{"brew", "upgrade"}
-	case "choco":
-		cmd = []string{"choco", "upgrade", "all", "-y"}
-	default:
-		p.Warnings = append(p.Warnings, "No upgrade-all command for manager: "+m.ID)
-		return p
+	if m.ID != "none" && len(m.Update) > 0 {
+		var cmd []string
+		switch m.ID {
+		case "apt-get", "apt":
+			cmd = []string{m.ID, "upgrade", "-y"}
+		case "pacman":
+			cmd = []string{"pacman", "-Syu", "--noconfirm"}
+		case "dnf", "yum":
+			cmd = []string{m.ID, "upgrade", "-y"}
+		case "zypper":
+			cmd = []string{"zypper", "update", "-y"}
+		case "apk":
+			cmd = []string{"apk", "upgrade"}
+		case "winget":
+			cmd = []string{"winget", "upgrade", "--all"}
+		case "brew":
+			cmd = []string{"brew", "upgrade"}
+		case "choco":
+			cmd = []string{"choco", "upgrade", "all", "-y"}
+		default:
+			cmd = append([]string{}, m.Update...)
+		}
+		if len(cmd) > 0 {
+			p.Commands = append(p.Commands, CommandSpec{
+				Title:         "Upgrade system packages",
+				Cmd:           cmd,
+				Admin:         m.NeedsElev,
+				TimeoutSeconds: 600,
+			})
+		}
 	}
-	p.Commands = append(p.Commands, CommandSpec{
-		Title:         "Upgrade all packages",
-		Cmd:           cmd,
-		Admin:         m.NeedsElev,
-		TimeoutSeconds: 600,
-	})
+
+	if sys.Tools["flatpak"] != "" {
+		p.Commands = append(p.Commands, CommandSpec{
+			Title: "Upgrade flatpak apps",
+			Cmd:   []string{"flatpak", "update", "-y"},
+		})
+	}
+
+	if sys.Tools["snap"] != "" {
+		p.Commands = append(p.Commands, CommandSpec{
+			Title: "Refresh snap packages",
+			Cmd:   []string{"snap", "refresh"},
+			Admin: true,
+		})
+	}
+
+	info := SelfUpdateCheck()
+	if info.Available {
+		p.Warnings = append(p.Warnings, "Instally update available: v"+info.Latest+" — run 'instally --update-self'")
+		p.Commands = append(p.Commands, CommandSpec{
+			Title: "Update Instally",
+			Shell: SelfPath() + " --update-self --yes",
+		})
+	}
+
 	return p
 }
 

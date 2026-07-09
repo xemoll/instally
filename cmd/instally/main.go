@@ -18,7 +18,7 @@ func main() {
 	var pkgs, aur, flatpak, snap, git, release, local, urls, pipx, npm, cargo, golang, multi, presets listFlag
 	var batch, text, installGitHubRelease, scanPath, installLocalSafe, installURLSafe, vtKey, vtSaveKey, lang, logPath, exportPlanPath string
 	var dry, yes, detect, doctor, support, gui, legacyWebGUI, noOpen, prepare, fullSetup, setDefault, unsetDefault, installSelf, vtUpload, allowUnknown, trustedOfficialScript, vtStatus, vtClearKey, vtSaveKeyStdin, vtTest, securityTest, continueOnError, terminalMode, compatMatrix, listApps, listPresets, updateMode, upgradeMode, purgeCache, buildInfo, statsMode, fixBroken, envMode bool
-	var version, verifyInstalled, search, which, why, depends bool
+	var version, verifyInstalled, search, which, why, depends, checkUpdate, updateSelf bool
 	var port int
 	var completions string
 
@@ -91,6 +91,8 @@ func main() {
 	flag.BoolVar(&vtUpload, "vt-upload", false, "allow upload to VirusTotal")
 	flag.BoolVar(&allowUnknown, "allow-unknown", false, "allow install with limited scan")
 	flag.BoolVar(&trustedOfficialScript, "trusted-official-script", false, "skip scan for allowlisted installers")
+	flag.BoolVar(&checkUpdate, "check-update", false, "check for Instally updates")
+	flag.BoolVar(&updateSelf, "update-self", false, "update Instally to the latest version")
 
 	flag.CommandLine.Parse(normalizeArgs(os.Args[1:]))
 
@@ -235,15 +237,56 @@ func main() {
 		}
 		if len(items) == 0 {
 			fmt.Println("Usage: instally --update firefox discord git")
+			fmt.Println("       instally --update           (upgrade all + Instally)")
+			fmt.Println("       instally --update instally  (update Instally itself)")
 			return
 		}
-		plan := app.BuildUpdatePlan(items, app.Options{})
+		plan := app.BuildUpdatePlan(items, app.Options{Yes: yes, DryRun: dry})
 		runPlan(plan, dry)
 		return
 	}
 	if upgradeMode {
 		plan := app.BuildUpgradePlan(app.Options{})
 		runPlan(plan, dry)
+		return
+	}
+	if checkUpdate {
+		info := app.SelfUpdateCheck()
+		if info.Error != "" {
+			fmt.Println("Update check failed:", info.Error)
+			return
+		}
+		if info.Available {
+			fmt.Printf("Update available: v%s → v%s\n", info.Current, info.Latest)
+			fmt.Printf("Asset: %s\n", info.AssetName)
+			fmt.Println("Run: instally --update-self")
+		} else {
+			fmt.Printf("Up to date (v%s)\n", info.Current)
+		}
+		return
+	}
+	if updateSelf {
+		info := app.SelfUpdateCheck()
+		if info.Error != "" {
+			fmt.Println("Update check failed:", info.Error)
+			return
+		}
+		if !info.Available {
+			fmt.Printf("Already up to date (v%s)\n", info.Current)
+			return
+		}
+		opts := app.Options{
+			Yes:              yes,
+			DryRun:           dry,
+			VirusTotalKey:    vtKey,
+			VirusTotalUpload: vtUpload,
+			AllowUnknown:     allowUnknown,
+		}
+		res := app.SelfUpdate(opts, info)
+		fmt.Print(res.Output)
+		if !res.OK {
+			os.Exit(1)
+		}
 		return
 	}
 
