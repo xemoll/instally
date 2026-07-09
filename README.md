@@ -1,56 +1,82 @@
 # Instally
 
-Multi-platform package installer — Linux, Windows, macOS.  
-Detects your system, picks the right package manager, and installs apps with a single command.
+Универсальный установщик пакетов для Linux, Windows и macOS.  
+Определяет систему, подбирает менеджер и устанавливает приложения одной командой.
 
 ```bash
 instally firefox discord vlc blender
 ```
 
-## Quick start
+## TUI-интерфейс
 
 ```bash
-# Install apps — auto-detects system manager or known app profile
-instally git curl wget
-
-# List what's available
-instally --list-apps
-instally --list-presets
-
-# Check your system
-instally --detect
-instally --doctor
-
-# Batch install
-instally --preset dev
-instally --preset gaming,media
-
-# Multi-install
-instally --multi "firefox, vscode, discord"
-instally --multi "git" --multi "curl" --multi "wget"
+instally --gui
 ```
 
-## Install methods
+Текстовый интерфейс в терминале: поиск, проверка безопасности, план установки,
+подтверждение, выполнение. Работает в любом терминале.
 
-| Flag | What it does |
-|------|-------------|
-| `--pkg <name>` | Native package (apt, pacman, dnf, winget, brew, ...) |
-| `--flatpak <id>` | Flatpak from Flathub |
-| `--snap <name>` | Snap package |
-| `--pipx <name>` | pipx tool |
-| `--npm <name>` | npm global tool |
+```bash
+instally                        # открывает TUI если есть терминал
+instally --gui                  # принудительно
+```
+
+## Установка
+
+```bash
+# Из релиза
+curl -L https://github.com/xemoll/instally/releases/latest/download/linux-amd64 -o instally
+chmod +x instally && ./instally --install-self
+
+# Из исходников
+git clone https://github.com/xemoll/instally
+cd instally && go build -o instally ./cmd/instally
+./instally --install-self --set-default-installer
+```
+
+## Быстрый старт
+
+```bash
+instally git curl wget                     # установка через менеджер
+instally firefox discord vscode            # известные приложения
+instally --preset dev,gaming               # пресеты
+instally --multi "firefox, git, curl"      # мульти-установка
+instally --batch list.txt                  # из файла
+instally --text "firefox, git"             # из текста
+```
+
+## Поиск
+
+```bash
+instally --search python        # ищет в системном менеджере
+instally --list-apps            # список известных приложений
+instally --list-presets         # список пресетов
+instally --which firefox        # где установлено и версия
+instally --why firefox          # почему такой метод установки
+```
+
+## Методы установки
+
+| Флаг | Что делает |
+|------|-----------|
+| `--pkg <name>` | Пакет системы (apt, pacman, dnf, winget, brew...) |
+| `--aur <name>` | AUR (Arch) |
+| `--flatpak <id>` | Flatpak из Flathub |
+| `--snap <name>` | Snap |
+| `--pipx <name>` | pipx |
+| `--npm <name>` | npm global |
 | `--cargo <crate>` | cargo install |
 | `--go <pkg>` | go install |
-| `--git <url>` | Clone + build from git |
-| `-remote <owner/repo>` | Download latest GitHub release |
-| `--url <url>` | Download and run installer |
-| `--local <path>` | Install local file |
-| `--aur <name>` | AUR package (Arch) |
+| `--git <url>` | Клонировать и собрать из исходников |
+| `--github <owner/repo>` | Скачать GitHub Release |
+| `--url <url>` | Скачать и установить |
+| `--local <path>` | Установить локальный файл |
+| `--preset <name>` | Пресет приложений |
 
-### Presets
+### Пресеты
 
-| Preset | Apps |
-|--------|------|
+| Пресет | Приложения |
+|--------|-----------|
 | `base` | git, curl, wget, fastfetch, btop, htop |
 | `dev` | vscode, neovim, git, docker, node, python, go, lazygit |
 | `gaming` | steam, heroic, lutris, prismlauncher, mangohud, protonup-qt |
@@ -59,70 +85,62 @@ instally --multi "git" --multi "curl" --multi "wget"
 | `security` | wireshark, veracrypt, tailscale, bleachbit, protonvpn |
 | `terminals` | alacritty, wezterm, kitty, fastfetch |
 
-## Advanced
+## Безопасность
 
-### Security scanning
 ```bash
-instally --scan ./installer.sh                          # scan file
-instally --security-test                                 # test detection pipeline
-instally --vt-key "<key>" --vt-upload --pkg firefox      # with VirusTotal
-instally --vt-save-key-stdin < <keyfile>                 # save VT key securely
+instally --scan ./installer.sh               # проверить файл
+instally --security-test                      # тест системы обнаружения
+instally --vt-key "<key>" firefox            # с VirusTotal
+instally --vt-save-key-stdin < keyfile       # сохранить ключ VT
+instally --vt-status                         # статус VT
+instally --vt-test                           # проверить ключ VT
+instally --vt-clear-key                      # удалить ключ VT
 ```
 
-### Download cache management
+Instally проверяет файлы перед установкой:
+- SHA-256
+- ClamAV и YARA (если установлены)
+- VirusTotal (по ключу)
+- Статический анализ скриптов
+- Проверка архивов на path-traversal
+- Проверка подписей (GPG, Authenticode, Gatekeeper)
+
+## Диагностика
+
 ```bash
-instally --purge-cache                                   # clear cached downloads
+instally --detect             # информация о системе (JSON)
+instally --doctor             # полная диагностика
+instally --support            # матрица поддержки
+instally --version            # версия
+instally --build-info         # версия + Go
+instally --stats              # статистика приложений
+instally --env                # переменные окружения
+instally --fix-broken         # починить менеджер пакетов
 ```
 
-### Update & upgrade
+## План и логи
+
 ```bash
-instally --update firefox git                            # update specific apps
-instally --upgrade-all                                   # upgrade all system packages
+instally --export-plan plan.json firefox git    # сохранить план
+instally --log install.log firefox git           # выполнить + лог
+instally --dry-run firefox git vscode           # предпросмотр
 ```
 
-### Diagnostics
+## Обновление
+
 ```bash
-instally --detect                                        # print system info (JSON)
-instally --doctor                                        # full diagnostics
-instally --support                                      # support matrix
-instally --version                                      # version
-instally --build-info                                   # version + Go runtime
-instally --stats                                        # known-apps statistics
-instally --which git                                    # locate binary + version
-instally --why firefox                                  # explain install method
-instally --verify-installed firefox git vscode          # check installed status
-instally --search keyword                               # search package repos
-instally --env                                         # show all INSTALLY_* vars
-instally --fix-broken                                  # repair broken manager
-instally --compat-matrix                                # 30-system dry-run matrix
+instally --update firefox git     # обновить конкретные
+instally --upgrade-all            # обновить все
+instally --purge-cache            # очистить кэш
 ```
 
-### Plan & log
-```bash
-instally --export-plan plan.json firefox git vscode     # save plan as JSON
-instally --log install.log firefox git                   # run + write log
-instally --dry-run firefox git vscode                   # preview without running
-```
-
-### Batch files
-```bash
-instally --batch list.txt
-instally --text "firefox, git, vscode"
-```
-
-### Language
-```bash
-instally --lang ru       # Russian UI
-instally --lang en       # English (default)
-```
-
-## Supported package managers
+## Поддерживаемые менеджеры
 
 Linux: apt, pacman, dnf, yum, zypper, apk, xbps, emerge, eopkg, snap, flatpak  
-Windows: winget, chocolate, scoop  
+Windows: winget, chocolatey, scoop  
 macOS: brew, port
 
-## Build from source
+## Сборка
 
 ```bash
 git clone https://github.com/xemoll/instally
@@ -131,6 +149,6 @@ go build -o instally ./cmd/instally
 ./instally --detect
 ```
 
-## License
+## Лицензия
 
 MIT
