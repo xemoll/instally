@@ -19,7 +19,7 @@ func RunTerminalInstaller(opts Options) int {
 	fmt.Println("End input with an empty line or Ctrl+D.")
 	fmt.Println()
 
-	interactive := stdinIsTerminal()
+	interactive := StdinIsTerminal()
 	var lines []string
 	s := bufio.NewScanner(os.Stdin)
 	for {
@@ -80,7 +80,7 @@ func RunTerminalInstaller(opts Options) int {
 	return 0
 }
 
-func stdinIsTerminal() bool {
+func StdinIsTerminal() bool {
 	st, err := os.Stdin.Stat()
 	if err != nil {
 		return false

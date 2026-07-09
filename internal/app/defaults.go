@@ -91,11 +91,10 @@ Type=Application
 Name=Instally
 GenericName=Universal installer
 Comment=Install apps from packages, stores, Git and releases
-Exec=` + bin + ` --open-file %F
-Terminal=false
-Icon=system-software-install
+Exec=` + bin + `
+Terminal=true
+Icon=instally
 Categories=System;PackageManager;Utility;
-MimeType=application/vnd.debian.binary-package;application/x-deb;application/x-rpm;application/x-redhat-package-manager;application/x-instally-appimage;application/vnd.flatpak.ref;application/vnd.flatpak.repo;application/x-instally-arch-package;application/zip;application/x-tar;application/gzip;application/x-xz;
 StartupNotify=true
 `
 }

@@ -87,8 +87,7 @@ func (ui *uiState) build(w fyne.Window) {
 	ui.resultBadge = widget.NewLabel("")
 	ui.meta = widget.NewLabel("")
 	ui.checks = container.NewVBox()
-	resultBody := container.NewVBox(ui.resultTitle, ui.resultText, ui.resultBadge, ui.meta, ui.checks)
-	ui.resultCard = widget.NewCard("", "", resultBody)
+	ui.resultCard = widget.NewCard("", "", container.NewVBox(ui.resultTitle, ui.resultText, ui.resultBadge, ui.meta, ui.checks))
 	ui.resultCard.Hide()
 
 	ui.vtKey = widget.NewPasswordEntry()
@@ -100,34 +99,25 @@ func (ui *uiState) build(w fyne.Window) {
 	ui.planText = widget.NewLabel(core.T("plan.placeholder"))
 	langSelect := widget.NewSelect([]string{"ru", "en"}, func(v string) { core.SetAppLanguage(v); _ = core.SaveLanguage(v) })
 	langSelect.SetSelected(core.AppLanguage())
-	advBody := container.NewVBox(
-		widget.NewLabelWithStyle(core.T("language"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		langSelect,
-		widget.NewLabelWithStyle("VirusTotal", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		ui.vtKey, ui.vtUpload, ui.allowUnknown,
-		container.NewGridWithColumns(2, scanOnlyBtn, planBtn),
-		ui.planText,
-	)
-	advanced := widget.NewAccordion(widget.NewAccordionItem(core.T("advanced"), container.NewPadded(advBody)))
 	ui.log = widget.NewMultiLineEntry()
 	ui.log.SetPlaceHolder(core.T("log.placeholder"))
 	ui.log.Wrapping = fyne.TextWrapWord
-	logPane := widget.NewAccordion(widget.NewAccordionItem(core.T("log"), container.NewVScroll(ui.log)))
 
 	w.SetContent(container.NewVBox(
-		container.NewPadded(container.NewBorder(nil, nil, brand, statusPill)),
-		widget.NewCard("", "", container.NewVBox(
-			container.NewHBox(widget.NewIcon(theme.MailAttachmentIcon()), ui.sourceLine),
-			ui.input,
-			container.NewHBox(ui.fileBtn, ui.autoBtn),
-		)),
-		widget.NewCard("", "", container.NewVBox(
-			container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3]),
-			container.NewHBox(ui.status, ui.progress),
-		)),
+		container.NewBorder(nil, nil, brand, statusPill),
+		container.NewHBox(widget.NewIcon(theme.MailAttachmentIcon()), ui.sourceLine),
+		ui.input,
+		container.NewHBox(ui.fileBtn, ui.autoBtn),
+		container.NewGridWithColumns(4, ui.steps[0], ui.steps[1], ui.steps[2], ui.steps[3]),
+		container.NewHBox(ui.status, ui.progress),
 		ui.resultCard,
-		advanced,
-		logPane,
+		ui.vtKey,
+		ui.vtUpload,
+		ui.allowUnknown,
+		container.NewGridWithColumns(2, scanOnlyBtn, planBtn),
+		langSelect,
+		ui.planText,
+		ui.log,
 	))
 	w.SetOnDropped(func(pos fyne.Position, uris []fyne.URI) {
 		if len(uris) == 0 {
